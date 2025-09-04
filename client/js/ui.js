@@ -12,8 +12,55 @@ class UIManager {
         
         this.initializeElements();
         this.setupEventListeners();
+        this.setupSocketEvents();
         this.loadPlayerName();
         this.updateBalance();
+    }
+    
+    setupSocketEvents() {
+        // Aguardar socket manager estar disponível
+        const waitForSocket = () => {
+            if (window.socketManager) {
+                console.log('🔌 Conectando eventos do socket com UI...');
+                
+                // Eventos de estado do jogo
+                window.socketManager.on('game_state', (data) => {
+                    console.log('🎮 Estado do jogo:', data);
+                    this.handleGameState(data);
+                });
+                
+                window.socketManager.on('multiplier_update', (data) => {
+                    console.log('📈 Multiplicador:', data.multiplier);
+                    this.handleMultiplierUpdate(data);
+                });
+                
+                window.socketManager.on('game_crashed', (data) => {
+                    console.log('💥 Jogo crashou:', data);
+                    this.handleGameCrashed(data);
+                });
+                
+                window.socketManager.on('bet_placed', (data) => {
+                    console.log('✅ Aposta confirmada:', data);
+                    this.handleBetPlaced(data);
+                });
+                
+                window.socketManager.on('player_cashed_out', (data) => {
+                    console.log('💰 Jogador sacou:', data);
+                    this.handlePlayerCashedOut(data);
+                });
+                
+                window.socketManager.on('connection_status', (data) => {
+                    console.log('🔗 Status conexão:', data);
+                    this.handleConnectionStatus(data);
+                });
+                
+            } else {
+                console.log('⏳ Aguardando socket manager...');
+                setTimeout(waitForSocket, 100);
+            }
+        };
+        
+        waitForSocket();
     }
     
     initializeElements() {
@@ -585,6 +632,82 @@ class UIManager {
         }
         
         this.updateStartButton();
+    }
+    
+    
+    // Game event handlers
+    handleGameState(data) {
+        console.log('🎯 Mudando estado:', this.gameState, '->', data.state);
+        this.gameState = data.state;
+        
+        if (data.state === 'waiting') {
+            this.elements.countdown.style.display = 'none';
+            this.elements.waitingScreen.style.display = 'block';
+            this.elements.waitingTimer.textContent = `Próximo jogo em ${Math.ceil(data.timeLeft / 1000)}s`;
+        } else if (data.state === 'starting') {
+            this.elements.waitingScreen.style.display = 'none';
+            this.elements.countdown.style.display = 'block';
+            this.elements.countdown.textContent = Math.ceil(data.timeLeft / 1000);
+        } else if (data.state === 'flying') {
+            this.elements.countdown.style.display = 'none';
+            this.elements.crashStatus.style.display = 'none';
+            this.elements.multiplier.style.display = 'block';
+        } else if (data.state === 'crashed') {
+            this.handleGameCrashed(data);
+        }
+        
+        this.updateStartButton();
+    }
+    
+    handleMultiplierUpdate(data) {
+        if (this.elements.multiplier) {
+            this.elements.multiplier.textContent = data.multiplier.toFixed(2) + 'x';
+        }
+        
+        // Atualizar canvas se disponível
+        if (window.canvasManager) {
+            window.canvasManager.addPoint(data.gameTime, data.multiplier);
+        }
+    }
+    
+    handleGameCrashed(data) {
+        this.gameState = 'crashed';
+        
+        // Mostrar crash
+        if (this.elements.crashStatus) {
+            this.elements.crashStatus.style.display = 'block';
+            this.elements.crashMultiplier.textContent = data.crashMultiplier.toFixed(2) + 'x';
+        }
+        
+        // Reset player state
+        this.isPlaying = false;
+        this.updateStartButton();
+        
+        // Esconder multiplicador
+        if (this.elements.multiplier) {
+            this.elements.multiplier.style.display = 'none';
+        }
+    }
+    
+    handleBetPlaced(data) {
+        if (data.success) {
+            this.isPlaying = true;
+            this.currentBet = data.amount;
+            this.playerBalance -= data.amount;
+            this.updateBalance();
+            this.updateStartButton();
+            this.showNotification(`Aposta de R$ ${data.amount.toFixed(2)} realizada!`, 'success');
+        } else {
+            this.showNotification(data.error || 'Erro ao fazer aposta', 'error');
+        }
+    }
+    
+    handleConnectionStatus(data) {
+        if (data.connected) {
+            this.showNotification('Conectado ao servidor!', 'success');
+        } else {
+            this.showNotification('Desconectado do servidor', 'error');
+        }
     }
     
     // Name management methods
