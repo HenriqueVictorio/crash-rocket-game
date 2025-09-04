@@ -11,38 +11,6 @@
     <link rel="stylesheet" href="css/mobile.css">
 </head>
 <body>
-        <!-- Botão Servidor no canto superior direito -->
-        <div class="server-config">
-            <button id="serverBtn" class="server-button">
-                <span class="server-icon">🔗</span>
-                SERVIDOR
-                <span id="connectionStatus" class="status offline">●</span>
-            </button>
-        </div>
-
-        <!-- Modal de Configuração -->
-        <div id="serverModal" class="modal hidden">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h3>Configurar Servidor</h3>
-                    <button id="closeModal" class="close-btn">×</button>
-                </div>
-                <div class="modal-body">
-                    <label for="serverUrl">URL do Servidor:</label>
-                    <input type="url" 
-                                 id="serverUrl" 
-                                 placeholder="https://consultancy-breast-za-recorded.trycloudflare.com"
-                                 value="">
-                    <div class="connection-info">
-                        <p id="connectionText">Desconectado</p>
-                        <div class="button-group">
-                            <button id="connectBtn" class="connect-btn">CONECTAR</button>
-                            <button id="disconnectBtn" class="disconnect-btn hidden">DESCONECTAR</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
     <div class="game-container">
         <!-- Seletor de Servidor -->
         <div class="server-selector">
@@ -209,7 +177,6 @@
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
     <script src="js/canvas.js"></script>
     <script src="js/socket.js"></script>
-    <script src="js/server-manager.js"></script>
     <script src="js/server-selector.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/game.js"></script>
