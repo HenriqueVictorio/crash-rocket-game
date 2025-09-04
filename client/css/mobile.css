@@ -6,6 +6,27 @@
         flex-direction: column;
     }
     
+    /* Server selector mobile */
+    .server-selector {
+        top: 10px;
+        right: 10px;
+    }
+    
+    .server-dropdown {
+        min-width: 300px;
+        right: -100px;
+        padding: 1rem;
+    }
+    
+    .server-actions {
+        flex-direction: column;
+    }
+    
+    .test-connection-btn,
+    .save-server-btn {
+        margin-bottom: 0.5rem;
+    }
+    
     .control-panel {
         margin: 0.75rem;
         padding: 1rem;

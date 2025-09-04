@@ -7,35 +7,100 @@ class SocketManager {
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
         this.reconnectDelay = 1000;
+        this.currentServerUrl = '';
         
         this.eventCallbacks = new Map();
         
+        // Carregar URL do servidor salva ou usar padrão
+        this.loadServerUrl();
+    }
+    
+    loadServerUrl() {
+        // Tentar carregar URL salva no localStorage
+        const savedUrl = localStorage.getItem('crash-rocket-server-url');
+        
+        if (savedUrl) {
+            this.currentServerUrl = savedUrl;
+        } else {
+            // URLs padrão baseadas no ambiente
+            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+                this.currentServerUrl = 'http://localhost:3001';
+            } else {
+                this.currentServerUrl = 'https://referrals-intelligence-clearing-meetup.trycloudflare.com';
+            }
+        }
+        
+        console.log('🔌 URL do servidor carregada:', this.currentServerUrl);
         this.connect();
     }
     
-    connect() {
-        // Determine socket URL based on environment
-        const socketUrl = this.getSocketUrl();
+    setServerUrl(url) {
+        // Validar URL
+        if (!url || !this.isValidUrl(url)) {
+            throw new Error('URL inválida');
+        }
         
-        this.socket = io(socketUrl, {
+        this.currentServerUrl = url;
+        localStorage.setItem('crash-rocket-server-url', url);
+        
+        // Reconectar com nova URL
+        this.disconnect();
+        this.connect();
+    }
+    
+    isValidUrl(url) {
+        try {
+            new URL(url);
+            return url.startsWith('http://') || url.startsWith('https://');
+        } catch {
+            return false;
+        }
+    }
+    
+    async testConnection(url) {
+        return new Promise((resolve) => {
+            const testSocket = io(url, {
+                transports: ['websocket', 'polling'],
+                timeout: 5000,
+                forceNew: true
+            });
+            
+            const timeout = setTimeout(() => {
+                testSocket.disconnect();
+                resolve(false);
+            }, 5000);
+            
+            testSocket.on('connect', () => {
+                clearTimeout(timeout);
+                testSocket.disconnect();
+                resolve(true);
+            });
+            
+            testSocket.on('connect_error', () => {
+                clearTimeout(timeout);
+                testSocket.disconnect();
+                resolve(false);
+            });
+        });
+    }
+    
+    connect() {
+        if (this.socket) {
+            this.socket.disconnect();
+        }
+        
+        console.log('🚀 Conectando ao servidor:', this.currentServerUrl);
+        
+        this.socket = io(this.currentServerUrl, {
             transports: ['websocket', 'polling'],
             reconnection: true,
             reconnectionAttempts: this.maxReconnectAttempts,
             reconnectionDelay: this.reconnectDelay,
-            timeout: 20000
+            timeout: 20000,
+            forceNew: true
         });
         
         this.setupEventHandlers();
-    }
-    
-    getSocketUrl() {
-        // Development
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            return 'http://localhost:3001';
-        }
-        
-        // Production - use environment variable or fallback
-        return process.env.SOCKET_URL || 'wss://your-backend-url.railway.app';
     }
     
     setupEventHandlers() {

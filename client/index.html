@@ -12,6 +12,37 @@
 </head>
 <body>
     <div class="game-container">
+        <!-- Seletor de Servidor -->
+        <div class="server-selector">
+            <div class="server-indicator" id="server-indicator">
+                <div class="server-dot" id="server-dot"></div>
+                <span class="server-text" id="server-text">Servidor</span>
+                <button class="server-btn" id="server-btn">⚙️</button>
+            </div>
+            <div class="server-dropdown hidden" id="server-dropdown">
+                <div class="server-dropdown-header">
+                    <h3>Configurar Servidor</h3>
+                    <button class="close-dropdown" id="close-dropdown">×</button>
+                </div>
+                <div class="server-options">
+                    <label for="custom-server">URL do Servidor:</label>
+                    <input type="text" id="custom-server" placeholder="https://seu-servidor.com" />
+                    <div class="server-presets">
+                        <button class="preset-btn" data-url="https://referrals-intelligence-clearing-meetup.trycloudflare.com">Cloudflare Tunnel</button>
+                        <button class="preset-btn" data-url="http://localhost:3001">Localhost</button>
+                        <button class="preset-btn" data-url="https://crash-rocket-server.railway.app">Railway</button>
+                    </div>
+                    <div class="server-actions">
+                        <button class="test-connection-btn" id="test-connection">Testar Conexão</button>
+                        <button class="save-server-btn" id="save-server">Salvar & Conectar</button>
+                    </div>
+                    <div class="connection-status" id="connection-status-text">
+                        <span class="status-text">Desconectado</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Painel de Controle -->
         <div class="control-panel">
             <div class="panel-header">
@@ -123,6 +154,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="js/canvas.js"></script>
     <script src="js/socket.js"></script>
+    <script src="js/server-selector.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/game.js"></script>
 </body>
