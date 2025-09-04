@@ -34,9 +34,9 @@ class SocketManager {
         } else {
             // URLs padrão baseadas no ambiente
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                this.currentServerUrl = 'http://localhost:3001';
+                this.currentServerUrl = 'https://kelly-currency-surrey-makeup.trycloudflare.com';
             } else {
-                this.currentServerUrl = 'https://consultancy-breast-za-recorded.trycloudflare.com';
+                this.currentServerUrl = 'https://kelly-currency-surrey-makeup.trycloudflare.com';
             }
         }
         
