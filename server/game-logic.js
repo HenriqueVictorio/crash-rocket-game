@@ -41,7 +41,7 @@ class GameEngine extends EventEmitter {
             mode: 'exponential', // 'exponential' | 'polynomial'
             rate: 0.55,          // per-second growth rate for exponential (e.g., ~2x em ~1.26s)
             baseGrowth: 0.6,     // for polynomial fallback
-            acceleration: 0.08   // for polynomial fallback
+            acceleration: 0.01   // for polynomial fallback
         };
         
         // Statistics
@@ -55,7 +55,7 @@ class GameEngine extends EventEmitter {
 
         // Broadcast thresholds
         this.broadcastCfg = {
-            multiplierIncrement: 0.05 // só transmite mudanças de >= 0.05x
+            multiplierIncrement: 0.01 // só transmite mudanças de >= 0.05x
         };
     }
     
@@ -177,7 +177,7 @@ class GameEngine extends EventEmitter {
         // Isso evita explosão de chance por frame em 60 FPS.
     // Probabilidade equilibrada por update, conforme especificação
     let crashChance;
-    if (multiplier < 1.5) crashChance = 0.001;      // 0.1%
+    if (multiplier < 1.5) crashChance = 0.5;      // 0.1%
     else if (multiplier < 2.0) crashChance = 0.005; // 0.5%
     else if (multiplier < 3.0) crashChance = 0.01;  // 1%
     else if (multiplier < 5.0) crashChance = 0.02;  // 2%
