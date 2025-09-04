@@ -32,9 +32,16 @@ class GameEngine extends EventEmitter {
         this.config = {
             waitTime: { min: 3000, max: 7000 }, // 3-7 seconds
             countdownTime: 3000, // 3 seconds
-            updateInterval: 16, // 16ms (60 FPS) - MUITO mais rápido
-            maxGameTime: 30000, // 30 seconds max
+            updateInterval: 16, // 16ms (60 FPS)
+            maxGameTime: 45000, // 45 seconds max
             historySize: 20
+        };
+        // Growth configuration
+        this.growth = {
+            mode: 'exponential', // 'exponential' | 'polynomial'
+            rate: 0.55,          // per-second growth rate for exponential (e.g., ~2x em ~1.26s)
+            baseGrowth: 0.6,     // for polynomial fallback
+            acceleration: 0.08   // for polynomial fallback
         };
         
         // Statistics
@@ -141,33 +148,36 @@ class GameEngine extends EventEmitter {
     }
     
     calculateMultiplier(time) {
-        // Multiplicador muito mais rápido - chega em 2x em ~2 segundos
-        const baseGrowth = 0.4; // 40% por segundo - MUITO mais rápido
-        const acceleration = 0.05; // Aceleração forte
-        
-        return 1 + (baseGrowth * time) + (acceleration * Math.pow(time, 2));
+        // Dois modos: exponencial (padrão) ou polinomial (fallback)
+        if (this.growth.mode === 'exponential') {
+            // m(t) = e^(rate * t)
+            return Math.exp(this.growth.rate * time);
+        } else {
+            // m(t) = 1 + a*t + b*t^2
+            return 1 + (this.growth.baseGrowth * time) + (this.growth.acceleration * Math.pow(time, 2));
+        }
     }
     
     shouldCrash(multiplier, time) {
-        // Probability increases with time and multiplier
-        let probability;
-        
+        // Modelo de risco por segundo (hazard) convertido para probabilidade por update.
+        // Isso evita explosão de chance por frame em 60 FPS.
+        let lambda; // hazard por segundo
         if (multiplier < 1.5) {
-            probability = 0.001; // Very low chance early
+            lambda = 0.003; // quase nula no começo
         } else if (multiplier < 2) {
-            probability = 0.01; // 1% chance
+            lambda = 0.02;  // 2% por segundo próximo de 2x
         } else if (multiplier < 5) {
-            probability = 0.02; // 2% chance
+            lambda = 0.05 + 0.02 * (multiplier - 2); // sobe gradualmente
         } else {
-            probability = 0.05 + (multiplier - 5) * 0.01; // Increasing chance
+            lambda = 0.12 + 0.04 * (multiplier - 5); // sobe mais forte acima de 5x
         }
-        
-        // Additional time-based increase
-        probability += time * 0.001;
-        
-        // Cap at 50% per update
-        probability = Math.min(probability, 0.5);
-        
+
+        // incremento suave com o tempo de voo (após 2s começa a crescer)
+        lambda += Math.max(0, time - 2) * 0.01;
+
+        // Converter hazard por segundo em probabilidade por update
+        const dt = this.config.updateInterval / 1000;
+        const probability = 1 - Math.exp(-lambda * dt);
         return Math.random() < probability;
     }
     
