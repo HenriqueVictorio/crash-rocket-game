@@ -49,6 +49,17 @@
                 <h2>Foguetinho</h2>
             </div>
             
+            <!-- Player Info -->
+            <div class="player-info-section">
+                <div class="player-name-container">
+                    <span id="player-name" class="current-player-name">Jogador</span>
+                    <button id="edit-name-btn" class="edit-name-btn" title="Editar nome">✏️</button>
+                </div>
+                <div class="player-balance">
+                    <span>Saldo: R$ <span id="player-balance">1000.00</span></span>
+                </div>
+            </div>
+            
             <!-- Toggle Normal/Auto -->
             <div class="mode-toggle">
                 <button class="toggle-btn active" data-mode="manual">Normal</button>
@@ -146,6 +157,18 @@
                         <span class="player-cashout">Retirou em 2.34x</span>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de Edição de Nome -->
+    <div id="name-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3>Editar Nome</h3>
+            <input type="text" id="name-input" placeholder="Digite seu nome" maxlength="20">
+            <div class="modal-actions">
+                <button id="confirm-name" class="confirm-btn">Salvar</button>
+                <button id="cancel-name" class="cancel-btn">Cancelar</button>
             </div>
         </div>
     </div>

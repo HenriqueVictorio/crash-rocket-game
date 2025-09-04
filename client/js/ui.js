@@ -29,6 +29,12 @@ class UIManager {
             btnLoading: document.querySelector('.btn-loading'),
             
             // Player info
+            playerName: document.getElementById('player-name'),
+            editNameBtn: document.getElementById('edit-name-btn'),
+            nameModal: document.getElementById('name-modal'),
+            nameInput: document.getElementById('name-input'),
+            confirmNameBtn: document.getElementById('confirm-name'),
+            cancelNameBtn: document.getElementById('cancel-name'),
             playerBalance: document.getElementById('player-balance'),
             lastWin: document.getElementById('last-win'),
             lastWinAmount: document.getElementById('last-win-amount'),
@@ -96,6 +102,37 @@ class UIManager {
                 this.handleMainAction();
             }
         });
+        
+        // Name editing
+        this.elements.editNameBtn.addEventListener('click', () => {
+            this.openNameModal();
+        });
+        
+        this.elements.confirmNameBtn.addEventListener('click', () => {
+            this.savePlayerName();
+        });
+        
+        this.elements.cancelNameBtn.addEventListener('click', () => {
+            this.closeNameModal();
+        });
+        
+        this.elements.nameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.savePlayerName();
+            } else if (e.key === 'Escape') {
+                this.closeNameModal();
+            }
+        });
+        
+        // Close modal on outside click
+        this.elements.nameModal.addEventListener('click', (e) => {
+            if (e.target === this.elements.nameModal) {
+                this.closeNameModal();
+            }
+        });
+        
+        // Load saved name
+        this.loadPlayerName();
     }
     
     toggleMode(mode) {
@@ -501,6 +538,55 @@ class UIManager {
         }
         
         this.updateStartButton();
+    }
+    
+    // Name management methods
+    openNameModal() {
+        this.elements.nameInput.value = this.elements.playerName.textContent || '';
+        this.elements.nameModal.classList.remove('hidden');
+        setTimeout(() => {
+            this.elements.nameInput.focus();
+            this.elements.nameInput.select();
+        }, 100);
+    }
+    
+    closeNameModal() {
+        this.elements.nameModal.classList.add('hidden');
+    }
+    
+    savePlayerName() {
+        const newName = this.elements.nameInput.value.trim();
+        
+        if (!newName) {
+            this.showNotification('Nome não pode estar vazio', 'error');
+            return;
+        }
+        
+        if (newName.length > 20) {
+            this.showNotification('Nome muito longo (máximo 20 caracteres)', 'error');
+            return;
+        }
+        
+        // Update UI
+        this.elements.playerName.textContent = newName;
+        
+        // Save to localStorage
+        localStorage.setItem('crash-rocket-player-name', newName);
+        
+        // Send to server if connected
+        if (window.socketManager && window.socketManager.isConnected) {
+            window.socketManager.socket.emit('update_player_name', newName);
+        }
+        
+        this.closeNameModal();
+        this.showNotification('Nome atualizado!', 'success');
+    }
+    
+    loadPlayerName() {
+        const savedName = localStorage.getItem('crash-rocket-player-name');
+        if (savedName) {
+            this.elements.playerName.textContent = savedName;
+        }
     }
 }
 

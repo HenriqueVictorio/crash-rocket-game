@@ -139,9 +139,19 @@ class RocketCurve {
     addPoint(time, multiplier) {
         const { width, height } = this.canvas;
         
+        // Zoom dinâmico: mais zoom perto de 1x, menos zoom em multiplicadores altos
+        let scale;
+        if (multiplier <= 2) {
+            scale = 4; // Muito zoom perto de 1x
+        } else if (multiplier <= 5) {
+            scale = 8; // Zoom médio
+        } else {
+            scale = 15; // Menos zoom para multiplicadores altos
+        }
+        
         // Calculate position (30 seconds = full width)
         const x = Math.min((time / 30) * width, width);
-        const y = height - Math.min(((multiplier - 1) / 10) * height, height);
+        const y = height - Math.min(((multiplier - 1) / scale) * height, height);
         
         this.points.push({ x, y, multiplier, time });
         

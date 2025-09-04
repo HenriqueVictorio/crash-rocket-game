@@ -32,7 +32,7 @@ class GameEngine extends EventEmitter {
         this.config = {
             waitTime: { min: 3000, max: 7000 }, // 3-7 seconds
             countdownTime: 3000, // 3 seconds
-            updateInterval: 100, // 100ms (10 FPS)
+            updateInterval: 33, // 33ms (30 FPS) - 3x mais rápido
             maxGameTime: 30000, // 30 seconds max
             historySize: 20
         };
