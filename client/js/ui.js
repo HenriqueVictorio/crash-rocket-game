@@ -12,6 +12,7 @@ class UIManager {
         
         this.initializeElements();
         this.setupEventListeners();
+        this.loadPlayerName();
         this.updateBalance();
     }
     
@@ -93,6 +94,27 @@ class UIManager {
         // Auto cash out value validation
         this.elements.autoCashOutValue.addEventListener('input', (e) => {
             this.validateAutoCashOutValue(e.target.value);
+        });
+        
+        // Name editing
+        this.elements.editNameBtn.addEventListener('click', () => {
+            this.openNameModal();
+        });
+        
+        this.elements.confirmNameBtn.addEventListener('click', () => {
+            this.savePlayerName();
+        });
+        
+        this.elements.cancelNameBtn.addEventListener('click', () => {
+            this.closeNameModal();
+        });
+        
+        this.elements.nameInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.savePlayerName();
+            } else if (e.key === 'Escape') {
+                this.closeNameModal();
+            }
         });
         
         // Prevent form submission
@@ -188,6 +210,14 @@ class UIManager {
         const amount = parseFloat(value) || 0;
         const isValid = amount >= 1 && amount <= this.playerBalance;
         
+        console.log('🔍 Validando aposta:', {
+            value,
+            amount,
+            playerBalance: this.playerBalance,
+            isValid,
+            minAmount: 1
+        });
+        
         this.elements.betAmount.style.borderColor = isValid ? '' : '#e53e3e';
         this.updateStartButton();
         
@@ -214,21 +244,38 @@ class UIManager {
     placeBet() {
         const betAmount = parseFloat(this.elements.betAmount.value) || 0;
         
+        console.log('🎯 Tentando apostar:', betAmount);
+        console.log('💰 Saldo atual:', this.playerBalance);
+        console.log('🎮 Estado do jogo:', this.gameState);
+        
         if (!this.validateBetAmount(betAmount)) {
+            console.log('❌ Valor de aposta inválido');
             this.showNotification('Valor de aposta inválido', 'error');
             return;
         }
         
         if (betAmount > this.playerBalance) {
+            console.log('❌ Saldo insuficiente');
             this.showNotification('Saldo insuficiente', 'error');
             return;
         }
         
         const autoCashOut = this.isAutoCashOut ? parseFloat(this.elements.autoCashOutValue.value) : null;
         
+        console.log('📡 Enviando aposta para servidor...');
+        
         // Send bet to server
         if (window.socketManager) {
-            window.socketManager.placeBet(betAmount, autoCashOut);
+            if (window.socketManager.isConnected) {
+                console.log('✅ Conectado - enviando aposta');
+                window.socketManager.placeBet(betAmount, autoCashOut);
+            } else {
+                console.log('❌ Não conectado ao servidor');
+                this.showNotification('Não conectado ao servidor', 'error');
+            }
+        } else {
+            console.log('❌ Socket manager não encontrado');
+            this.showNotification('Erro de conexão', 'error');
         }
         
         // Update local state
