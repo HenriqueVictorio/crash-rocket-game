@@ -258,7 +258,7 @@ class ServerSelector {
     getPresetUrls() {
         return {
             localhost: 'http://localhost:3001',
-            cloudflare: 'https://referrals-intelligence-clearing-meetup.trycloudflare.com',
+            cloudflare: 'https://betty-john-johnny-inquire.trycloudflare.com',
             railway: 'https://crash-rocket-server.railway.app'
         };
     }
