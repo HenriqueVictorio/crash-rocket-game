@@ -183,6 +183,11 @@ class SocketManager {
             this.emit('game_history', data);
         });
         
+        // Server confirms bet
+        this.socket.on('bet_placed', (data) => {
+            this.emit('bet_placed', data);
+        });
+
         this.socket.on('error', (data) => {
             console.error('🚨 Erro do servidor:', data);
             this.emit('server_error', data);
@@ -244,6 +249,13 @@ class SocketManager {
     }
     
     joinGame(playerName = null) {
+        try {
+            // Usa o nome salvo no localStorage se existir
+            const saved = localStorage.getItem('crash-rocket-player-name');
+            if (!playerName && saved) {
+                playerName = saved;
+            }
+        } catch {}
         this.send('join_game', {
             playerName: playerName || this.generatePlayerName(),
             timestamp: Date.now()

@@ -9,6 +9,7 @@ class UIManager {
         this.isAutoCashOut = false;
         this.autoCashOutValue = 2.00;
         this.isPlaying = false;
+    this.isPlacingBet = false;
         
         this.initializeElements();
         this.setupEventListeners();
@@ -42,6 +43,19 @@ class UIManager {
                 window.socketManager.on('bet_placed', (data) => {
                     console.log('✅ Aposta confirmada:', data);
                     this.handleBetPlaced(data);
+                });
+
+                // Confirmação via broadcast (player_bet) — usa o socketId atual para saber se é a nossa aposta
+                window.socketManager.on('player_bet', (data) => {
+                    try {
+                        const { socketId } = window.socketManager.getConnectionStatus();
+                        if (data && data.playerId && socketId && data.playerId === socketId) {
+                            console.log('🧾 Aposta do jogador atual confirmada via player_bet');
+                            this.handleBetPlaced({ success: true, amount: data.amount });
+                        }
+                    } catch (e) {
+                        console.warn('Falha ao processar player_bet:', e);
+                    }
                 });
                 
                 window.socketManager.on('player_cashed_out', (data) => {
@@ -266,7 +280,6 @@ class UIManager {
         });
         
         this.elements.betAmount.style.borderColor = isValid ? '' : '#e53e3e';
-        this.updateStartButton();
         
         return isValid;
     }
@@ -325,14 +338,11 @@ class UIManager {
             this.showNotification('Erro de conexão', 'error');
         }
         
-        // Update local state
-        this.currentBet = betAmount;
-        this.playerBalance -= betAmount;
-        this.isPlaying = true;
-        
-        this.updateBalance();
-        this.updateStartButton();
-        this.showNotification(`Aposta de R$ ${betAmount.toFixed(2)} realizada!`, 'success');
+    // Marcar como enviando aposta; aguardará confirmação do servidor
+    this.currentBet = betAmount;
+    this.isPlacingBet = true;
+    this.updateStartButton();
+    this.showNotification('Enviando aposta...', 'info');
     }
     
     cashOut() {
@@ -360,11 +370,15 @@ class UIManager {
         if (this.gameState === 'waiting' || this.gameState === 'starting') {
             // SEMPRE permitir apostar em waiting/starting
             const betAmount = parseFloat(this.elements.betAmount.value) || 0;
-            const isValidBet = this.validateBetAmount(betAmount);
+            // Calcular validade localmente para evitar recursão
+            const isValidBet = betAmount >= 1 && betAmount <= this.playerBalance;
             
             if (this.isPlaying) {
                 btnText.textContent = 'Aposta Realizada';
                 btn.disabled = true; // Já apostou
+            } else if (this.isPlacingBet) {
+                btnText.textContent = 'Aguardando...';
+                btn.disabled = true;
             } else {
                 btnText.textContent = 'Apostar';
                 btn.disabled = !isValidBet; // Só desabilita se aposta inválida
@@ -649,14 +663,21 @@ class UIManager {
         // Reset isPlaying quando começar novo jogo
         if (data.state === 'waiting') {
             this.isPlaying = false; // IMPORTANTE: Reset para poder apostar no próximo
+            this.isPlacingBet = false;
             this.elements.countdown.style.display = 'none';
             this.elements.waitingScreen.style.display = 'block';
-            this.elements.waitingTimer.textContent = `Próximo jogo em ${Math.ceil(data.timeLeft / 1000)}s`;
+            const nextIn = typeof data.nextGameIn === 'number' ? data.nextGameIn : (typeof data.timeLeft === 'number' ? data.timeLeft / 1000 : null);
+            if (nextIn !== null) {
+                this.elements.waitingTimer.textContent = `Próximo jogo em ${Math.ceil(nextIn)}s`;
+            } else {
+                this.elements.waitingTimer.textContent = 'Próximo jogo em breve';
+            }
         } else if (data.state === 'starting') {
             // NÃO reset isPlaying aqui - só quando waiting
             this.elements.waitingScreen.style.display = 'none';
             this.elements.countdown.style.display = 'block';
-            this.elements.countdown.textContent = Math.ceil(data.timeLeft / 1000);
+            const cd = typeof data.countdown === 'number' ? data.countdown : (typeof data.timeLeft === 'number' ? data.timeLeft / 1000 : 3);
+            this.elements.countdown.textContent = Math.ceil(cd);
         } else if (data.state === 'flying') {
             this.elements.countdown.style.display = 'none';
             this.elements.crashStatus.style.display = 'none';
@@ -685,11 +706,15 @@ class UIManager {
         // Mostrar crash
         if (this.elements.crashStatus) {
             this.elements.crashStatus.style.display = 'block';
-            this.elements.crashMultiplier.textContent = data.crashMultiplier.toFixed(2) + 'x';
+            const crash = typeof data.crashMultiplier === 'number' ? data.crashMultiplier : (typeof data.finalMultiplier === 'number' ? data.finalMultiplier : null);
+            if (crash !== null) {
+                this.elements.crashMultiplier.textContent = crash.toFixed(2) + 'x';
+            }
         }
         
-        // Reset player state
-        this.isPlaying = false;
+    // Reset player state
+    this.isPlaying = false;
+    this.isPlacingBet = false;
         this.updateStartButton();
         
         // Esconder multiplicador
@@ -699,15 +724,24 @@ class UIManager {
     }
     
     handleBetPlaced(data) {
-        if (data.success) {
-            this.isPlaying = true;
-            this.currentBet = data.amount;
-            this.playerBalance -= data.amount;
-            this.updateBalance();
+        // Limpa estado de envio
+        this.isPlacingBet = false;
+        if (data && data.success) {
+            if (!this.isPlaying) {
+                this.isPlaying = true;
+                const amount = data.amount ?? this.currentBet;
+                if (typeof amount === 'number' && amount > 0) {
+                    this.playerBalance -= amount;
+                    this.updateBalance();
+                }
+                this.showNotification(`Aposta de R$ ${(data.amount ?? this.currentBet).toFixed(2)} realizada!`, 'success');
+            }
             this.updateStartButton();
-            this.showNotification(`Aposta de R$ ${data.amount.toFixed(2)} realizada!`, 'success');
         } else {
-            this.showNotification(data.error || 'Erro ao fazer aposta', 'error');
+            // Falhou: libera para tentar novamente
+            this.isPlaying = false;
+            this.updateStartButton();
+            this.showNotification((data && data.error) || 'Erro ao fazer aposta', 'error');
         }
     }
     

@@ -133,7 +133,8 @@ class CrashRocketServer {
                 try {
                     const player = this.playerManager.getPlayer(socket.id);
                     if (player) {
-                        player.name = data.playerName || `Player${socket.id.substr(0, 4)}`;
+                        // Prefer saved name from localStorage if sent
+                        player.name = data.playerName || player.name || `Player${socket.id.substr(0, 4)}`;
                         player.joinedAt = Date.now();
                         
                         console.log(`🎮 Player ${player.name} joined the game`);
@@ -147,6 +148,22 @@ class CrashRocketServer {
                 } catch (error) {
                     console.error('Error handling join game:', error);
                     socket.emit('error', { message: 'Failed to join game' });
+                }
+            });
+
+            // Handle update name
+            socket.on('update_player_name', (newName) => {
+                try {
+                    const name = String(newName).trim().slice(0, 20);
+                    if (!name) return;
+                    const player = this.playerManager.getPlayer(socket.id);
+                    if (player) {
+                        player.name = name;
+                        socket.emit('player_name_updated', { success: true, name });
+                    }
+                } catch (error) {
+                    console.error('Error updating player name:', error);
+                    socket.emit('player_name_updated', { success: false, error: 'Failed to update name' });
                 }
             });
             
@@ -173,13 +190,21 @@ class CrashRocketServer {
                     if (success) {
                         const player = this.playerManager.getPlayer(socket.id);
                         if (player) {
-                            player.currentBet = amount;
-                            player.autoCashOut = autoCashOut;
-                            player.isPlaying = true;
+                            // Debitar saldo e marcar jogando
+                            if (player.balance >= amount) {
+                                player.balance -= amount;
+                                player.currentBet = amount;
+                                player.autoCashOut = autoCashOut;
+                                player.isPlaying = true;
+                                player.totalBets += amount;
+                            }
                         }
                         
                         console.log(`💰 Player ${socket.id} placed bet: R$ ${amount}`);
                         
+                        // Confirm bet to this player
+                        socket.emit('bet_placed', { success: true, amount });
+
                         // Notify other players
                         this.io.emit('player_bet', {
                             playerId: socket.id,
@@ -187,11 +212,11 @@ class CrashRocketServer {
                             amount: amount
                         });
                     } else {
-                        socket.emit('error', { message: 'Failed to place bet' });
+                        socket.emit('bet_placed', { success: false, error: 'Failed to place bet' });
                     }
                 } catch (error) {
                     console.error('Error handling place bet:', error);
-                    socket.emit('error', { message: 'Failed to place bet' });
+                    socket.emit('bet_placed', { success: false, error: 'Failed to place bet' });
                 }
             });
             
