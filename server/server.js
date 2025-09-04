@@ -4,6 +4,7 @@ const socketIo = require('socket.io');
 const cors = require('cors');
 const helmet = require('helmet');
 const compression = require('compression');
+const path = require('path');
 require('dotenv').config();
 
 const GameEngine = require('./game-logic');
@@ -15,7 +16,7 @@ class CrashRocketServer {
         this.server = http.createServer(this.app);
         this.io = socketIo(this.server, {
             cors: {
-                origin: process.env.CLIENT_URL || "*",
+                origin: "*",
                 methods: ["GET", "POST"],
                 credentials: true
             },
@@ -40,10 +41,13 @@ class CrashRocketServer {
         }));
         this.app.use(compression());
         this.app.use(cors({
-            origin: process.env.CLIENT_URL || "*",
+            origin: "*",
             credentials: true
         }));
         this.app.use(express.json());
+        
+        // Servir arquivos do socket.io
+        this.app.use('/socket.io', express.static(path.join(__dirname, '../node_modules/socket.io/client-dist')));
         
         // Request logging
         this.app.use((req, res, next) => {
@@ -57,10 +61,26 @@ class CrashRocketServer {
         this.app.get('/health', (req, res) => {
             res.json({
                 status: 'ok',
+                message: 'Crash Rocket Server Online!',
                 timestamp: new Date().toISOString(),
                 uptime: process.uptime(),
                 gameState: this.gameEngine.getGameState(),
-                playersOnline: this.playerManager.getPlayerCount()
+                playersOnline: this.playerManager.getPlayerCount(),
+                version: '1.0.0'
+            });
+        });
+        
+        // Root route
+        this.app.get('/', (req, res) => {
+            res.json({
+                status: 'ok',
+                message: 'Crash Rocket Server is running!',
+                timestamp: new Date().toISOString(),
+                endpoints: {
+                    health: '/health',
+                    stats: '/stats',
+                    websocket: 'ws://' + req.get('host')
+                }
             });
         });
         
@@ -284,7 +304,9 @@ class CrashRocketServer {
         this.server.listen(this.port, () => {
             console.log(`🚀 Crash Rocket Server running on port ${this.port}`);
             console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-            console.log(`🌐 CORS origin: ${process.env.CLIENT_URL || '*'}`);
+            console.log(`🌐 CORS origin: *`);
+            console.log(`🔗 Server URL: http://localhost:${this.port}`);
+            console.log(`💡 Health check: http://localhost:${this.port}/health`);
         });
         
         // Start game engine

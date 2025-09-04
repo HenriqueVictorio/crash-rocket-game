@@ -109,12 +109,18 @@ class SocketManager {
             this.isConnected = true;
             this.reconnectAttempts = 0;
             this.emit('connection_status', { connected: true });
+            
+            // Update UI
+            this.updateConnectionIndicator(true);
         });
         
         this.socket.on('disconnect', (reason) => {
             console.log('❌ Desconectado do servidor:', reason);
             this.isConnected = false;
             this.emit('connection_status', { connected: false, reason });
+            
+            // Update UI
+            this.updateConnectionIndicator(false);
         });
         
         this.socket.on('connect_error', (error) => {
@@ -242,6 +248,7 @@ class SocketManager {
         if (this.socket) {
             this.socket.disconnect();
         }
+        this.updateConnectionIndicator(false);
     }
     
     reconnect() {
@@ -250,11 +257,31 @@ class SocketManager {
         }
     }
     
+    updateConnectionIndicator(connected) {
+        // Update server selector indicator
+        if (window.serverSelector) {
+            window.serverSelector.updateConnectionStatus(connected);
+        }
+        
+        // Update any other connection indicators
+        const indicators = document.querySelectorAll('.connection-indicator, .server-indicator');
+        indicators.forEach(indicator => {
+            if (connected) {
+                indicator.classList.remove('disconnected');
+                indicator.classList.add('connected');
+            } else {
+                indicator.classList.remove('connected');
+                indicator.classList.add('disconnected');
+            }
+        });
+    }
+    
     getConnectionStatus() {
         return {
             connected: this.isConnected,
             socketId: this.socket?.id || null,
-            transport: this.socket?.io?.engine?.transport?.name || null
+            transport: this.socket?.io?.engine?.transport?.name || null,
+            serverUrl: this.currentServerUrl
         };
     }
 }
