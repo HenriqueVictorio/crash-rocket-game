@@ -32,7 +32,7 @@ class GameEngine extends EventEmitter {
         this.config = {
             waitTime: { min: 3000, max: 7000 }, // 3-7 seconds
             countdownTime: 3000, // 3 seconds
-            updateInterval: 16, // 16ms (60 FPS)
+            updateInterval: 100, // 100ms (10 FPS) conforme especificação
             maxGameTime: 45000, // 45 seconds max
             historySize: 20
         };
@@ -51,6 +51,11 @@ class GameEngine extends EventEmitter {
             totalPayouts: 0,
             averageMultiplier: 0,
             uptime: Date.now()
+        };
+
+        // Broadcast thresholds
+        this.broadcastCfg = {
+            multiplierIncrement: 0.05 // só transmite mudanças de >= 0.05x
         };
     }
     
@@ -102,6 +107,7 @@ class GameEngine extends EventEmitter {
         this.state = GAME_STATES.FLYING;
         this.multiplier = 1.00;
         this.startTime = Date.now();
+    this._lastBroadcastMultiplier = this.multiplier;
         
         this.emit('game_state_changed', {
             state: this.state,
@@ -122,10 +128,21 @@ class GameEngine extends EventEmitter {
         if (this.state !== GAME_STATES.FLYING) return;
         
         const elapsed = (Date.now() - this.startTime) / 1000;
-        this.multiplier = this.calculateMultiplier(elapsed);
+        const newMultiplier = this.calculateMultiplier(elapsed);
+        
+        // Apenas transmitir se houve mudança significativa
+        if (newMultiplier - this._lastBroadcastMultiplier >= this.broadcastCfg.multiplierIncrement) {
+            this.multiplier = newMultiplier;
+            this._lastBroadcastMultiplier = newMultiplier;
+            this.emit('multiplier_update', {
+                state: this.state,
+                multiplier: this.multiplier,
+                time: elapsed
+            });
+        }
         
         // Check for crash
-        if (this.shouldCrash(this.multiplier, elapsed)) {
+        if (this.shouldCrash(this.multiplier)) {
             this.crashGame();
             return;
         }
@@ -147,30 +164,25 @@ class GameEngine extends EventEmitter {
         });
     }
     
-    calculateMultiplier(time) {
-        // Dois modos: exponencial (padrão) ou polinomial (fallback)
-        if (this.growth.mode === 'exponential') {
-            // m(t) = e^(rate * t)
-            return Math.exp(this.growth.rate * time);
-        } else {
-            // m(t) = 1 + a*t + b*t^2
-            return 1 + (this.growth.baseGrowth * time) + (this.growth.acceleration * Math.pow(time, 2));
-        }
+    calculateMultiplier(timeInSeconds) {
+        // MULTIPLICADOR CORRIGIDO — seguindo especificação do usuário (usar exatamente esta fórmula)
+        const baseSpeed = 0.1; // 10% por segundo inicialmente
+        const acceleration = 0.02; // Aceleração progressiva
+        const multiplier = 1 + (baseSpeed * timeInSeconds) + (acceleration * Math.pow(timeInSeconds, 1.3));
+        return parseFloat(multiplier.toFixed(2));
     }
     
     shouldCrash(multiplier, time) {
         // Modelo de risco por segundo (hazard) convertido para probabilidade por update.
         // Isso evita explosão de chance por frame em 60 FPS.
-        let lambda; // hazard por segundo
-        if (multiplier < 1.5) {
-            lambda = 0.003; // quase nula no começo
-        } else if (multiplier < 2) {
-            lambda = 0.02;  // 2% por segundo próximo de 2x
-        } else if (multiplier < 5) {
-            lambda = 0.05 + 0.02 * (multiplier - 2); // sobe gradualmente
-        } else {
-            lambda = 0.12 + 0.04 * (multiplier - 5); // sobe mais forte acima de 5x
-        }
+    // Probabilidade equilibrada por update, conforme especificação
+    let crashChance;
+    if (multiplier < 1.5) crashChance = 0.001;      // 0.1%
+    else if (multiplier < 2.0) crashChance = 0.005; // 0.5%
+    else if (multiplier < 3.0) crashChance = 0.01;  // 1%
+    else if (multiplier < 5.0) crashChance = 0.02;  // 2%
+    else crashChance = 0.03 + (multiplier - 5) * 0.005; // crescente acima de 5x
+    return Math.random() < crashChance;
 
         // incremento suave com o tempo de voo (após 2s começa a crescer)
         lambda += Math.max(0, time - 2) * 0.01;

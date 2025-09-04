@@ -10,6 +10,8 @@ class UIManager {
         this.autoCashOutValue = 2.00;
         this.isPlaying = false;
     this.isPlacingBet = false;
+    // Visual counter
+    this.multiplierCounter = { displayed: 1.0, target: 1.0 };
         
         this.initializeElements();
         this.setupEventListeners();
@@ -31,7 +33,10 @@ class UIManager {
                 });
                 
                 window.socketManager.on('multiplier_update', (data) => {
-                    console.log('📈 Multiplicador:', data.multiplier);
+                    // Atualização via servidor com menos ruído
+                    if (typeof data.multiplier === 'number') {
+                        this.multiplierCounter.target = data.multiplier;
+                    }
                     this.handleMultiplierUpdate(data);
                 });
                 
@@ -596,7 +601,13 @@ class UIManager {
     }
     
     updateMultiplier(multiplier) {
-        this.elements.multiplier.textContent = `${multiplier.toFixed(2)}X`;
+        // Atualiza alvo do contador suave
+        if (typeof multiplier === 'number') {
+            this.multiplierCounter.target = multiplier;
+        }
+        // Aplica valor exibido atual
+        const display = Math.max(1.0, this.multiplierCounter.displayed);
+        this.elements.multiplier.textContent = `${display.toFixed(2)}X`;
         
         // Scale effect based on multiplier
         const scale = Math.min(1 + (multiplier - 1) * 0.05, 1.5);
@@ -612,6 +623,21 @@ class UIManager {
         } else {
             this.elements.multiplier.style.color = 'white';
         }
+    }
+
+    // Animação suave do display do multiplicador (requestAnimationFrame)
+    startMultiplierAnimation() {
+        const step = () => {
+            const diff = this.multiplierCounter.target - this.multiplierCounter.displayed;
+            // 30% da diferença por frame (suave e responsivo)
+            this.multiplierCounter.displayed += diff * 0.3;
+            if (this.elements.multiplier) {
+                const val = Math.max(1.0, this.multiplierCounter.displayed);
+                this.elements.multiplier.textContent = `${val.toFixed(2)}X`;
+            }
+            requestAnimationFrame(step);
+        };
+        requestAnimationFrame(step);
     }
     
     addToHistory(multiplier) {
@@ -811,6 +837,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Make it globally available
     window.uiManager = uiManager;
+    // Start smooth multiplier animation
+    uiManager.startMultiplierAnimation();
 });
 
 // Export for use in other modules

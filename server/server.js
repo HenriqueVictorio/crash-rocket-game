@@ -287,6 +287,10 @@ class CrashRocketServer {
         this.gameEngine.on('game_state_changed', (gameState) => {
             this.io.emit('game_state', gameState);
         });
+        // Forward multiplier updates com menos ruído
+        this.gameEngine.on('multiplier_update', (data) => {
+            this.io.emit('multiplier_update', data);
+        });
         
         this.gameEngine.on('player_auto_cashed_out', (data) => {
             const player = this.playerManager.getPlayer(data.playerId);
