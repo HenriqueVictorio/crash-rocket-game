@@ -141,11 +141,11 @@ class GameEngine extends EventEmitter {
     }
     
     calculateMultiplier(time) {
-        // Exponential curve with realistic parameters
-        const baseGrowth = 0.02; // 2% per second base
-        const acceleration = 0.001; // Gradual acceleration
+        // Multiplicador muito mais rápido - chega em 2x em ~2 segundos
+        const baseGrowth = 0.4; // 40% por segundo - MUITO mais rápido
+        const acceleration = 0.05; // Aceleração forte
         
-        return 1 + (baseGrowth * time) + (acceleration * Math.pow(time, 1.5));
+        return 1 + (baseGrowth * time) + (acceleration * Math.pow(time, 2));
     }
     
     shouldCrash(multiplier, time) {

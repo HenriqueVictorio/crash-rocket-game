@@ -352,19 +352,25 @@ class UIManager {
         const btnText = this.elements.btnText;
         const btnLoading = this.elements.btnLoading;
         
+        console.log('🔄 Atualizando botão:', {
+            gameState: this.gameState,
+            isPlaying: this.isPlaying
+        });
+        
         if (this.gameState === 'waiting' || this.gameState === 'starting') {
+            // SEMPRE permitir apostar em waiting/starting
+            const betAmount = parseFloat(this.elements.betAmount.value) || 0;
+            const isValidBet = this.validateBetAmount(betAmount);
+            
             if (this.isPlaying) {
-                btnText.textContent = 'Aguardando...';
-                btn.disabled = true;
-                btnLoading.classList.remove('hidden');
+                btnText.textContent = 'Aposta Realizada';
+                btn.disabled = true; // Já apostou
             } else {
-                const betAmount = parseFloat(this.elements.betAmount.value) || 0;
-                const isValidBet = this.validateBetAmount(betAmount);
-                
-                btnText.textContent = 'Começar o jogo';
-                btn.disabled = !isValidBet;
-                btnLoading.classList.add('hidden');
+                btnText.textContent = 'Apostar';
+                btn.disabled = !isValidBet; // Só desabilita se aposta inválida
             }
+            btnLoading.classList.add('hidden');
+            
         } else if (this.gameState === 'flying') {
             if (this.isPlaying) {
                 btnText.textContent = 'Retirar';
@@ -640,11 +646,14 @@ class UIManager {
         console.log('🎯 Mudando estado:', this.gameState, '->', data.state);
         this.gameState = data.state;
         
+        // Reset isPlaying quando começar novo jogo
         if (data.state === 'waiting') {
+            this.isPlaying = false; // IMPORTANTE: Reset para poder apostar no próximo
             this.elements.countdown.style.display = 'none';
             this.elements.waitingScreen.style.display = 'block';
             this.elements.waitingTimer.textContent = `Próximo jogo em ${Math.ceil(data.timeLeft / 1000)}s`;
         } else if (data.state === 'starting') {
+            // NÃO reset isPlaying aqui - só quando waiting
             this.elements.waitingScreen.style.display = 'none';
             this.elements.countdown.style.display = 'block';
             this.elements.countdown.textContent = Math.ceil(data.timeLeft / 1000);
