@@ -138,26 +138,36 @@ class RocketCurve {
     
     addPoint(time, multiplier) {
         const { width, height } = this.canvas;
-        
-        // Zoom dinâmico: mais zoom perto de 1x, menos zoom em multiplicadores altos
-        let scale;
-        if (multiplier <= 2) {
-            scale = 4; // Muito zoom perto de 1x
-        } else if (multiplier <= 5) {
-            scale = 8; // Zoom médio
-        } else {
-            scale = 15; // Menos zoom para multiplicadores altos
-        }
-        
-        // Calculate position (30 seconds = full width)
+
+        // Mapeamento contínuo (suave) do eixo Y usando log para evitar saltos
+        // 1x fica na base; ~10x aproxima do topo (ajuste effectiveRange conforme preferir)
+        const effectiveRange = 10;
+        const norm = Math.max(0, Math.min(1, Math.log(Math.max(multiplier, 1.0001)) / Math.log(effectiveRange)));
+
+        // Posição (30 segundos = largura total)
         const x = Math.min((time / 30) * width, width);
-        const y = height - Math.min(((multiplier - 1) / scale) * height, height);
-        
+        const y = height - norm * height;
+
+        // Interpolação de pontos intermediários para suavidade entre amostras de servidor
+        if (this.points.length > 0) {
+            const last = this.points[this.points.length - 1];
+            const dt = Math.max(0, time - last.time);
+            const steps = Math.max(0, Math.min(10, Math.floor(dt / 0.05))); // amostra a cada 50ms
+            for (let i = 1; i <= steps; i++) {
+                const t = i / (steps + 1);
+                const xi = last.x + (x - last.x) * t;
+                const yi = last.y + (y - last.y) * t;
+                const mi = last.multiplier + (multiplier - last.multiplier) * t;
+                const ti = last.time + dt * t;
+                this.points.push({ x: xi, y: yi, multiplier: mi, time: ti });
+            }
+        }
+
         this.points.push({ x, y, multiplier, time });
-        
-        // Keep only last 300 points for performance
-        if (this.points.length > 300) {
-            this.points.shift();
+
+        // Limitar histórico para performance
+        if (this.points.length > 600) {
+            this.points.splice(0, this.points.length - 600);
         }
     }
     
@@ -166,11 +176,11 @@ class RocketCurve {
         
         const { ctx } = this;
         
-        // Draw main curve
-        ctx.strokeStyle = '#e53e3e';
-        ctx.lineWidth = 3;
-        ctx.lineCap = 'round';
-        ctx.lineJoin = 'round';
+    // Draw main curve
+    ctx.strokeStyle = '#e53e3e';
+    ctx.lineWidth = 3;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
         
         // Add glow effect on high-performance devices
         if (this.canvas.performanceSettings.enableShadows) {
@@ -180,23 +190,21 @@ class RocketCurve {
             ctx.shadowOffsetY = 0;
         }
         
+        // Catmull-Rom -> Bezier para suavidade sem picos
+        const pts = this.points;
         ctx.beginPath();
-        ctx.moveTo(this.points[0].x, this.points[0].y);
-        
-        // Draw smooth curve using quadratic curves
-        for (let i = 1; i < this.points.length - 1; i++) {
-            const current = this.points[i];
-            const next = this.points[i + 1];
-            const controlX = (current.x + next.x) / 2;
-            const controlY = (current.y + next.y) / 2;
-            
-            ctx.quadraticCurveTo(current.x, current.y, controlX, controlY);
-        }
-        
-        // Draw to last point
-        if (this.points.length > 1) {
-            const lastPoint = this.points[this.points.length - 1];
-            ctx.lineTo(lastPoint.x, lastPoint.y);
+        ctx.moveTo(pts[0].x, pts[0].y);
+        for (let i = 0; i < pts.length - 1; i++) {
+            const p0 = i > 0 ? pts[i - 1] : pts[0];
+            const p1 = pts[i];
+            const p2 = pts[i + 1];
+            const p3 = i !== pts.length - 2 ? pts[i + 2] : p2;
+
+            const cp1x = p1.x + (p2.x - p0.x) / 6;
+            const cp1y = p1.y + (p2.y - p0.y) / 6;
+            const cp2x = p2.x - (p3.x - p1.x) / 6;
+            const cp2y = p2.y - (p3.y - p1.y) / 6;
+            ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, p2.x, p2.y);
         }
         
         ctx.stroke();

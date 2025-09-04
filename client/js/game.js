@@ -67,6 +67,15 @@ class Game {
         this.socketManager.on('game_state', (data) => {
             this.handleGameState(data);
         });
+
+        // Alimentar linha também pelos updates de multiplicador suaves
+        this.socketManager.on('multiplier_update', (data) => {
+            if (this.gameState === 'flying' && typeof data.multiplier === 'number' && typeof data.time === 'number') {
+                this.currentMultiplier = data.multiplier;
+                this.rocketCurve.addPoint(data.time, data.multiplier);
+                this.uiManager.updateMultiplier(data.multiplier);
+            }
+        });
         
         this.socketManager.on('player_cashed_out', (data) => {
             this.handlePlayerCashedOut(data);
