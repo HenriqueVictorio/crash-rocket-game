@@ -26,7 +26,7 @@ class SocketManager {
             if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
                 this.currentServerUrl = 'http://localhost:3001';
             } else {
-                this.currentServerUrl = 'https://referrals-intelligence-clearing-meetup.trycloudflare.com';
+                this.currentServerUrl = 'https://betty-john-johnny-inquire.trycloudflare.com';
             }
         }
         
