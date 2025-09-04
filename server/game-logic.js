@@ -177,7 +177,7 @@ class GameEngine extends EventEmitter {
         // Isso evita explosão de chance por frame em 60 FPS.
     // Probabilidade equilibrada por update, conforme especificação
     let crashChance;
-    if (multiplier < 1.5) crashChance = 0.5;      // 0.1%
+    if (multiplier < 1.5) crashChance = 0.05;      // 0.1%
     else if (multiplier < 2.0) crashChance = 0.005; // 0.5%
     else if (multiplier < 3.0) crashChance = 0.01;  // 1%
     else if (multiplier < 5.0) crashChance = 0.02;  // 2%
