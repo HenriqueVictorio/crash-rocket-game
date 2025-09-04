@@ -13,6 +13,16 @@ class SocketManager {
         
         // Carregar URL do servidor salva ou usar padrão
         this.loadServerUrl();
+        
+        // Debug automático
+        console.log('🎯 SocketManager inicializado');
+        console.log('📡 URL do servidor:', this.currentServerUrl);
+        console.log('🔌 Conectando automaticamente...');
+        
+        // Conectar automaticamente
+        setTimeout(() => {
+            this.connect();
+        }, 1000);
     }
     
     loadServerUrl() {
@@ -105,7 +115,11 @@ class SocketManager {
     
     setupEventHandlers() {
         this.socket.on('connect', () => {
-            console.log('🚀 Conectado ao servidor');
+            console.log('✅ CONECTADO AO SERVIDOR!');
+            console.log('📡 Socket ID:', this.socket.id);
+            console.log('🌐 URL:', this.currentServerUrl);
+            console.log('🎮 Transport:', this.socket.io.engine.transport.name);
+            
             this.isConnected = true;
             this.reconnectAttempts = 0;
             this.emit('connection_status', { connected: true });
@@ -124,10 +138,14 @@ class SocketManager {
         });
         
         this.socket.on('connect_error', (error) => {
-            console.error('🔴 Erro de conexão:', error);
+            console.error('❌ ERRO DE CONEXÃO CRÍTICO:', error);
+            console.log('🔄 URL que falhou:', this.currentServerUrl);
+            console.log('🔧 Tentativa:', this.reconnectAttempts + 1);
+            
             this.reconnectAttempts++;
             
             if (this.reconnectAttempts >= this.maxReconnectAttempts) {
+                console.error('🚨 FALHA TOTAL - Esgotadas as tentativas!');
                 this.emit('connection_error', { 
                     error: 'Falha ao conectar após várias tentativas',
                     attempts: this.reconnectAttempts 
@@ -283,6 +301,29 @@ class SocketManager {
             transport: this.socket?.io?.engine?.transport?.name || null,
             serverUrl: this.currentServerUrl
         };
+    }
+    
+    // Método de debug para forçar conexão
+    forceConnect() {
+        console.log('🔧 FORÇANDO CONEXÃO...');
+        this.disconnect();
+        setTimeout(() => {
+            this.connect();
+        }, 1000);
+    }
+    
+    // Teste de conectividade simples
+    async testServerConnection() {
+        console.log('🧪 Testando conectividade do servidor...');
+        try {
+            const response = await fetch(this.currentServerUrl + '/health');
+            const data = await response.json();
+            console.log('✅ Servidor respondeu:', data);
+            return true;
+        } catch (error) {
+            console.error('❌ Servidor não responde:', error);
+            return false;
+        }
     }
 }
 
