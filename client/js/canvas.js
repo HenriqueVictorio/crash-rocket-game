@@ -126,53 +126,40 @@ class RocketCurve {
     constructor(canvasManager) {
         this.canvas = canvasManager;
         this.ctx = canvasManager.ctx;
-        this.points = [];
+        // Armazena pontos crus (tempo e multiplicador)
+        this.rawPoints = [];
         this.animationId = null;
         this.isAnimating = false;
+        // Escala dinâmica do eixo Y: começa em 2x e faz zoom out suave
+        this.yMax = 2.0;         // escala atual usada para desenhar (suavizada)
+        this.yMaxTarget = 2.0;   // alvo baseado no maior multiplicador recente
+        this.marginFactor = 1.1; // margem de 10% acima do atual
+        this.timeWindow = 30;    // segundos visíveis no eixo X
     }
     
     reset() {
-        this.points = [];
+        this.rawPoints = [];
+        this.yMax = 2.0;
+        this.yMaxTarget = 2.0;
         this.stopAnimation();
     }
     
     addPoint(time, multiplier) {
-        const { width, height } = this.canvas;
+        // Atualiza escala alvo (zoom out) quando passar de 2x
+        this.yMaxTarget = Math.max(2.0, Math.min(100, multiplier * this.marginFactor));
 
-        // Mapeamento contínuo (suave) do eixo Y usando log para evitar saltos
-        // 1x fica na base; ~10x aproxima do topo (ajuste effectiveRange conforme preferir)
-        const effectiveRange = 10;
-        const norm = Math.max(0, Math.min(1, Math.log(Math.max(multiplier, 1.0001)) / Math.log(effectiveRange)));
+        // Armazena ponto cru
+        this.rawPoints.push({ time, multiplier });
 
-        // Posição (30 segundos = largura total)
-        const x = Math.min((time / 30) * width, width);
-        const y = height - norm * height;
-
-        // Interpolação de pontos intermediários para suavidade entre amostras de servidor
-        if (this.points.length > 0) {
-            const last = this.points[this.points.length - 1];
-            const dt = Math.max(0, time - last.time);
-            const steps = Math.max(0, Math.min(10, Math.floor(dt / 0.05))); // amostra a cada 50ms
-            for (let i = 1; i <= steps; i++) {
-                const t = i / (steps + 1);
-                const xi = last.x + (x - last.x) * t;
-                const yi = last.y + (y - last.y) * t;
-                const mi = last.multiplier + (multiplier - last.multiplier) * t;
-                const ti = last.time + dt * t;
-                this.points.push({ x: xi, y: yi, multiplier: mi, time: ti });
-            }
-        }
-
-        this.points.push({ x, y, multiplier, time });
-
-        // Limitar histórico para performance
-        if (this.points.length > 600) {
-            this.points.splice(0, this.points.length - 600);
+        // Limita histórico recente (ex.: últimos 60s)
+        const cutoff = time - 60;
+        if (this.rawPoints.length > 2000) {
+            this.rawPoints = this.rawPoints.filter(p => p.time >= cutoff);
         }
     }
     
     draw() {
-        if (this.points.length < 2) return;
+        if (this.rawPoints.length < 2) return;
         
         const { ctx } = this;
         
@@ -190,8 +177,35 @@ class RocketCurve {
             ctx.shadowOffsetY = 0;
         }
         
+        // Suaviza escala Y gradualmente
+        this.yMax += (this.yMaxTarget - this.yMax) * 0.15; // 15% por frame
+        const yMax = Math.max(1.01, this.yMax);
+
+        // Converte pontos crus para pontos em tela usando escala dinâmica
+        const nowWindowEnd = this.rawPoints[this.rawPoints.length - 1].time; // último tempo conhecido
+        const windowStart = Math.max(0, nowWindowEnd - this.timeWindow);
+        const width = this.canvas.width; // atenção: width em CSS, não em backing store
+        const height = this.canvas.height;
+
+        // Corrigir para dpr: já escalado no ctx.scale(dpr, dpr), então width/height são CSS sizes
+        const cssWidth = this.canvas.width / this.canvas.dpr;
+        const cssHeight = this.canvas.height / this.canvas.dpr;
+
+        const pts = [];
+        for (const p of this.rawPoints) {
+            if (p.time < windowStart) continue;
+            const tNorm = (p.time - windowStart) / this.timeWindow; // 0..1
+            const x = Math.min(cssWidth * tNorm, cssWidth);
+            // map 1..yMax para 0..cssHeight
+            const mClamped = Math.max(1.0, Math.min(p.multiplier, yMax));
+            const yNorm = (mClamped - 1.0) / (yMax - 1.0);
+            const y = cssHeight - yNorm * cssHeight;
+            pts.push({ x, y });
+        }
+
+        if (pts.length < 2) return;
+
         // Catmull-Rom -> Bezier para suavidade sem picos
-        const pts = this.points;
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
         for (let i = 0; i < pts.length - 1; i++) {
@@ -219,9 +233,19 @@ class RocketCurve {
     }
     
     drawCurrentPoint() {
-        if (this.points.length === 0) return;
+    if (this.rawPoints.length === 0) return;
         
-        const lastPoint = this.points[this.points.length - 1];
+    // Converte último ponto para coordenadas atuais
+    const lastRaw = this.rawPoints[this.rawPoints.length - 1];
+    const windowStart = Math.max(0, lastRaw.time - this.timeWindow);
+    const cssWidth = this.canvas.width / this.canvas.dpr;
+    const cssHeight = this.canvas.height / this.canvas.dpr;
+    const yMax = Math.max(1.01, this.yMax);
+    const tNorm = (lastRaw.time - windowStart) / this.timeWindow;
+    const x = Math.min(cssWidth * tNorm, cssWidth);
+    const mClamped = Math.max(1.0, Math.min(lastRaw.multiplier, yMax));
+    const yNorm = (mClamped - 1.0) / (yMax - 1.0);
+    const y = cssHeight - yNorm * cssHeight;
         const { ctx } = this;
         
         // Pulsing dot at current position
@@ -229,12 +253,12 @@ class RocketCurve {
         const pulse = Math.sin(time) * 0.3 + 0.7;
         
         ctx.beginPath();
-        ctx.arc(lastPoint.x, lastPoint.y, 6 * pulse, 0, Math.PI * 2);
+    ctx.arc(x, y, 6 * pulse, 0, Math.PI * 2);
         ctx.fillStyle = '#ffffff';
         ctx.fill();
         
         ctx.beginPath();
-        ctx.arc(lastPoint.x, lastPoint.y, 4 * pulse, 0, Math.PI * 2);
+    ctx.arc(x, y, 4 * pulse, 0, Math.PI * 2);
         ctx.fillStyle = '#e53e3e';
         ctx.fill();
     }
@@ -261,22 +285,36 @@ class RocketCurve {
     
     // Get curve trajectory for rocket sprite positioning
     getRocketPosition() {
-        if (this.points.length === 0) return null;
+        if (this.rawPoints.length === 0) return null;
         
-        const lastPoint = this.points[this.points.length - 1];
+        const lastRaw = this.rawPoints[this.rawPoints.length - 1];
+        const windowStart = Math.max(0, lastRaw.time - this.timeWindow);
+        const cssWidth = this.canvas.width / this.canvas.dpr;
+        const cssHeight = this.canvas.height / this.canvas.dpr;
+        const yMax = Math.max(1.01, this.yMax);
+        const tNorm = (lastRaw.time - windowStart) / this.timeWindow;
+        const x = Math.min(cssWidth * tNorm, cssWidth);
+        const mClamped = Math.max(1.0, Math.min(lastRaw.multiplier, yMax));
+        const yNorm = (mClamped - 1.0) / (yMax - 1.0);
+        const y = cssHeight - yNorm * cssHeight;
         
         // Calculate angle based on last few points for smooth rotation
         let angle = 0;
-        if (this.points.length > 1) {
-            const prevPoint = this.points[this.points.length - 2];
-            angle = Math.atan2(lastPoint.y - prevPoint.y, lastPoint.x - prevPoint.x);
+        if (this.rawPoints.length > 1) {
+            const prevRaw = this.rawPoints[this.rawPoints.length - 2];
+            const prevTNorm = (prevRaw.time - windowStart) / this.timeWindow;
+            const px = Math.min(cssWidth * prevTNorm, cssWidth);
+            const pm = Math.max(1.0, Math.min(prevRaw.multiplier, yMax));
+            const pyNorm = (pm - 1.0) / (yMax - 1.0);
+            const py = cssHeight - pyNorm * cssHeight;
+            angle = Math.atan2(y - py, x - px);
         }
         
         return {
-            x: lastPoint.x,
-            y: lastPoint.y,
+            x,
+            y,
             angle: angle,
-            multiplier: lastPoint.multiplier
+            multiplier: lastRaw.multiplier
         };
     }
 }
