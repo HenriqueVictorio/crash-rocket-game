@@ -36,8 +36,9 @@ class UIManager {
                     // Atualização via servidor com menos ruído
                     if (typeof data.multiplier === 'number') {
                         this.multiplierCounter.target = data.multiplier;
+                        // Atualiza exibição suavizada; o gráfico é alimentado via game.js
+                        this.updateMultiplier(data.multiplier);
                     }
-                    this.handleMultiplierUpdate(data);
                 });
                 
                 window.socketManager.on('game_crashed', (data) => {
@@ -715,16 +716,7 @@ class UIManager {
         this.updateStartButton();
     }
     
-    handleMultiplierUpdate(data) {
-        if (this.elements.multiplier) {
-            this.elements.multiplier.textContent = data.multiplier.toFixed(2) + 'x';
-        }
-        
-        // Atualizar canvas se disponível
-        if (window.canvasManager) {
-            window.canvasManager.addPoint(data.gameTime, data.multiplier);
-        }
-    }
+    // Removido: atualização de canvas aqui para evitar conflito com game.js
     
     handleGameCrashed(data) {
         this.gameState = 'crashed';

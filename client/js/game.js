@@ -286,8 +286,13 @@ class Game {
         // Draw background
         this.canvasManager.drawBackground();
         
-        // Draw grid
-        this.canvasManager.drawGrid();
+        // Draw grid using dynamic Y scale (start at 2x, smooth zoom-out)
+        let yMaxForGrid = 2;
+        if (this.rocketCurve) {
+            const yMaxNext = Math.max(1.01, this.rocketCurve.yMax + (this.rocketCurve.yMaxTarget - this.rocketCurve.yMax) * 0.15);
+            yMaxForGrid = Math.max(2, yMaxNext);
+        }
+        this.canvasManager.drawGrid(1, yMaxForGrid);
         
         // Draw rocket curve
         if (this.gameState === 'flying' || this.gameState === 'crashed') {

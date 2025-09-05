@@ -172,25 +172,15 @@ class GameEngine extends EventEmitter {
         return parseFloat(multiplier.toFixed(2));
     }
     
-    shouldCrash(multiplier, time) {
-        // Modelo de risco por segundo (hazard) convertido para probabilidade por update.
-        // Isso evita explosão de chance por frame em 60 FPS.
-    // Probabilidade equilibrada por update, conforme especificação
-    let crashChance;
-    if (multiplier < 1.5) crashChance = 0.05;      // 0.1%
-    else if (multiplier < 2.0) crashChance = 0.005; // 0.5%
-    else if (multiplier < 3.0) crashChance = 0.01;  // 1%
-    else if (multiplier < 5.0) crashChance = 0.02;  // 2%
-    else crashChance = 0.03 + (multiplier - 5) * 0.005; // crescente acima de 5x
-    return Math.random() < crashChance;
-
-        // incremento suave com o tempo de voo (após 2s começa a crescer)
-        lambda += Math.max(0, time - 2) * 0.01;
-
-        // Converter hazard por segundo em probabilidade por update
-        const dt = this.config.updateInterval / 1000;
-        const probability = 1 - Math.exp(-lambda * dt);
-        return Math.random() < probability;
+    shouldCrash(multiplier) {
+        // Probabilidade por update com faixas por multiplicador
+        let crashChance;
+        if (multiplier < 1.5) crashChance = 0.001;      // 0.1%
+        else if (multiplier < 2.0) crashChance = 0.005; // 0.5%
+        else if (multiplier < 3.0) crashChance = 0.01;  // 1%
+        else if (multiplier < 5.0) crashChance = 0.02;  // 2%
+        else crashChance = Math.min(0.1, 0.03 + (multiplier - 5) * 0.005); // cresce até 10%
+        return Math.random() < crashChance;
     }
     
     checkAutoCashOuts() {

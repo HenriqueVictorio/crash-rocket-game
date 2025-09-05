@@ -40,8 +40,9 @@ class CanvasManager {
         this.canvas.width = this.width * this.dpr;
         this.canvas.height = this.height * this.dpr;
         
-        // Scale the drawing context back down
-        this.ctx.scale(this.dpr, this.dpr);
+    // Reset transform and scale the drawing context once per resize
+    this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+    this.ctx.scale(this.dpr, this.dpr);
         
         // Set the CSS size to maintain responsive design
         this.canvas.style.width = this.width + 'px';
@@ -65,7 +66,7 @@ class CanvasManager {
         this.ctx.clearRect(0, 0, this.width, this.height);
     }
     
-    drawGrid() {
+    drawGrid(yMin = 1, yMax = 2) {
         const { ctx, width, height } = this;
         
         ctx.strokeStyle = '#4a5568';
@@ -73,9 +74,11 @@ class CanvasManager {
         ctx.setLineDash([2, 2]);
         ctx.globalAlpha = 0.3;
         
-        // Horizontal lines (multipliers)
-        for (let i = 1; i <= 10; i++) {
-            const y = height - (i / 10) * height;
+        // Horizontal lines (multipliers) - dynamically based on yMax
+        const lines = 10;
+        for (let i = 0; i <= lines; i++) {
+            const frac = i / lines; // 0..1 from bottom to top
+            const y = height - frac * height;
             ctx.beginPath();
             ctx.moveTo(0, y);
             ctx.lineTo(width, y);
@@ -85,7 +88,9 @@ class CanvasManager {
             ctx.fillStyle = '#a0aec0';
             ctx.font = '12px Inter, sans-serif';
             ctx.globalAlpha = 0.6;
-            ctx.fillText(`${i + 1}x`, 10, y - 5);
+            const value = yMin + frac * (yMax - yMin);
+            const decimals = (yMax - yMin) > 5 ? 1 : 2;
+            ctx.fillText(`${value.toFixed(decimals)}x`, 10, y - 5);
             ctx.globalAlpha = 0.3;
         }
         
@@ -182,14 +187,11 @@ class RocketCurve {
         const yMax = Math.max(1.01, this.yMax);
 
         // Converte pontos crus para pontos em tela usando escala dinâmica
-        const nowWindowEnd = this.rawPoints[this.rawPoints.length - 1].time; // último tempo conhecido
+    const nowWindowEnd = this.rawPoints[this.rawPoints.length - 1].time; // último tempo conhecido
         const windowStart = Math.max(0, nowWindowEnd - this.timeWindow);
-        const width = this.canvas.width; // atenção: width em CSS, não em backing store
-        const height = this.canvas.height;
-
-        // Corrigir para dpr: já escalado no ctx.scale(dpr, dpr), então width/height são CSS sizes
-        const cssWidth = this.canvas.width / this.canvas.dpr;
-        const cssHeight = this.canvas.height / this.canvas.dpr;
+    // Dimensões em pixels CSS (o contexto já está escalado pelo DPR)
+    const cssWidth = this.canvas.width;
+    const cssHeight = this.canvas.height;
 
         const pts = [];
         for (const p of this.rawPoints) {
@@ -238,8 +240,8 @@ class RocketCurve {
     // Converte último ponto para coordenadas atuais
     const lastRaw = this.rawPoints[this.rawPoints.length - 1];
     const windowStart = Math.max(0, lastRaw.time - this.timeWindow);
-    const cssWidth = this.canvas.width / this.canvas.dpr;
-    const cssHeight = this.canvas.height / this.canvas.dpr;
+    const cssWidth = this.canvas.width;
+    const cssHeight = this.canvas.height;
     const yMax = Math.max(1.01, this.yMax);
     const tNorm = (lastRaw.time - windowStart) / this.timeWindow;
     const x = Math.min(cssWidth * tNorm, cssWidth);
@@ -287,10 +289,10 @@ class RocketCurve {
     getRocketPosition() {
         if (this.rawPoints.length === 0) return null;
         
-        const lastRaw = this.rawPoints[this.rawPoints.length - 1];
-        const windowStart = Math.max(0, lastRaw.time - this.timeWindow);
-        const cssWidth = this.canvas.width / this.canvas.dpr;
-        const cssHeight = this.canvas.height / this.canvas.dpr;
+    const lastRaw = this.rawPoints[this.rawPoints.length - 1];
+    const windowStart = Math.max(0, lastRaw.time - this.timeWindow);
+    const cssWidth = this.canvas.width;
+    const cssHeight = this.canvas.height;
         const yMax = Math.max(1.01, this.yMax);
         const tNorm = (lastRaw.time - windowStart) / this.timeWindow;
         const x = Math.min(cssWidth * tNorm, cssWidth);
