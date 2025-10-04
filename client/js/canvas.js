@@ -160,22 +160,28 @@ class RocketCurve {
 
         // Garantir ordem crescente de tempo
         const lastPoint = this.rawPoints[this.rawPoints.length - 1];
-        if (lastPoint && time <= lastPoint.time) {
-            time = lastPoint.time + 0.0001;
+        if (!lastPoint) {
+            const seedTime = Math.max(0, time - 0.05);
+            this.rawPoints.push({ time: seedTime, multiplier: safeMultiplier });
+        }
+
+        const previousPoint = this.rawPoints[this.rawPoints.length - 1];
+        if (previousPoint && time <= previousPoint.time) {
+            time = previousPoint.time + 0.0001;
         }
 
         // Atualiza escala alvo (zoom out) quando passar de 2x
-    this.yMaxTarget = Math.max(2.0, Math.min(250, safeMultiplier * this.marginFactor));
+        this.yMaxTarget = Math.max(2.0, Math.min(250, safeMultiplier * this.marginFactor));
 
         // Interpolar pontos intermediários para evitar "buracos" na linha
-        if (lastPoint) {
-            const deltaTime = time - lastPoint.time;
-            if (deltaTime > this.interpolationStep) {
+        if (previousPoint) {
+            const deltaTime = time - previousPoint.time;
+            if (deltaTime > this.interpolationStep * 1.5) {
                 const steps = Math.min(10, Math.floor(deltaTime / this.interpolationStep));
                 for (let i = 1; i <= steps; i++) {
                     const factor = i / (steps + 1);
-                    const interpTime = lastPoint.time + deltaTime * factor;
-                    const interpMultiplier = lastPoint.multiplier + (safeMultiplier - lastPoint.multiplier) * factor;
+                    const interpTime = previousPoint.time + deltaTime * factor;
+                    const interpMultiplier = previousPoint.multiplier + (safeMultiplier - previousPoint.multiplier) * factor;
                     this.rawPoints.push({ time: interpTime, multiplier: interpMultiplier });
                 }
             }
@@ -194,15 +200,13 @@ class RocketCurve {
     }
     
     draw() {
-        if (this.rawPoints.length < 2) return;
-        
         const { ctx } = this;
         
-    // Draw main curve
-    ctx.strokeStyle = '#e53e3e';
-    ctx.lineWidth = 3;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
+        // Draw main curve
+        ctx.strokeStyle = '#e53e3e';
+        ctx.lineWidth = 3;
+        ctx.lineCap = 'round';
+        ctx.lineJoin = 'round';
         
         // Add glow effect on high-performance devices
         if (this.canvas.performanceSettings.enableShadows) {
@@ -216,12 +220,16 @@ class RocketCurve {
         this.yMax += (this.yMaxTarget - this.yMax) * 0.15; // 15% por frame
         const yMax = Math.max(1.01, this.yMax);
 
+        if (this.rawPoints.length === 0) {
+            return;
+        }
+
         // Converte pontos crus para pontos em tela usando escala dinâmica
-    const nowWindowEnd = this.rawPoints[this.rawPoints.length - 1].time; // último tempo conhecido
+        const nowWindowEnd = this.rawPoints[this.rawPoints.length - 1].time; // último tempo conhecido
         const windowStart = Math.max(0, nowWindowEnd - this.timeWindow);
-    // Dimensões em pixels CSS (o contexto já está escalado pelo DPR)
-    const cssWidth = this.canvas.width;
-    const cssHeight = this.canvas.height;
+        // Dimensões em pixels CSS (o contexto já está escalado pelo DPR)
+        const cssWidth = this.canvas.width;
+        const cssHeight = this.canvas.height;
 
         const pts = [];
         for (const p of this.rawPoints) {
@@ -235,16 +243,46 @@ class RocketCurve {
             pts.push({ x, y });
         }
 
-        if (pts.length < 2) return;
+        if (pts.length < 2) {
+            // Desenha um marcador simples quando há somente um ponto (início do jogo)
+            const single = pts[0];
+            if (single) {
+                ctx.beginPath();
+                ctx.moveTo(Math.max(0, single.x - 12), single.y);
+                ctx.lineTo(single.x, single.y);
+                ctx.strokeStyle = '#e53e3e';
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                this.drawCurrentPoint();
+            }
+            return;
+        }
+
+        // Reduz a quantidade de pontos desenhados para manter performance estável
+        let drawPoints = pts;
+        const maxDrawPoints = 700;
+        if (drawPoints.length > maxDrawPoints) {
+            const step = Math.ceil(drawPoints.length / maxDrawPoints);
+            const sampled = [];
+            for (let i = 0; i < drawPoints.length; i += step) {
+                sampled.push(drawPoints[i]);
+            }
+            const lastSample = sampled[sampled.length - 1];
+            const lastPoint = drawPoints[drawPoints.length - 1];
+            if (lastSample !== lastPoint) {
+                sampled.push(lastPoint);
+            }
+            drawPoints = sampled;
+        }
 
         // Catmull-Rom -> Bezier para suavidade sem picos
         ctx.beginPath();
-        ctx.moveTo(pts[0].x, pts[0].y);
-        for (let i = 0; i < pts.length - 1; i++) {
-            const p0 = i > 0 ? pts[i - 1] : pts[0];
-            const p1 = pts[i];
-            const p2 = pts[i + 1];
-            const p3 = i !== pts.length - 2 ? pts[i + 2] : p2;
+        ctx.moveTo(drawPoints[0].x, drawPoints[0].y);
+        for (let i = 0; i < drawPoints.length - 1; i++) {
+            const p0 = i > 0 ? drawPoints[i - 1] : drawPoints[0];
+            const p1 = drawPoints[i];
+            const p2 = drawPoints[i + 1];
+            const p3 = i !== drawPoints.length - 2 ? drawPoints[i + 2] : p2;
 
             const cp1x = p1.x + (p2.x - p0.x) / 6;
             const cp1y = p1.y + (p2.y - p0.y) / 6;

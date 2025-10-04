@@ -75,11 +75,9 @@ class Game {
                 const displayMultiplier = typeof data.displayMultiplier === 'number'
                     ? data.displayMultiplier
                     : (rawMultiplier !== null ? Number(rawMultiplier.toFixed(2)) : null);
-                const timeValue = typeof data.time === 'number' ? data.time : null;
 
-                if (rawMultiplier !== null && timeValue !== null) {
+                if (rawMultiplier !== null) {
                     this.currentMultiplier = rawMultiplier;
-                    this.rocketCurve.addPoint(timeValue, rawMultiplier);
                 }
 
                 if (displayMultiplier !== null) {
