@@ -45,6 +45,21 @@
     .canvas-container {
         min-height: 50vh;
         margin-bottom: 0;
+        display: flex;
+        flex-direction: column;
+    }
+
+    .canvas-container::after {
+        content: none;
+    }
+
+    #gameCanvas,
+    .game-canvas {
+        flex: 1;
+    }
+
+    .game-overlay {
+        inset: 0;
     }
 
     .leaderboard-section {
