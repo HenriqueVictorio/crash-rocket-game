@@ -135,6 +135,20 @@
         height: 35px;
         font-size: 0.8rem;
     }
+
+    .leaderboard-item.is-placeholder {
+        opacity: 0.85;
+        border-width: 1px;
+        border-style: dashed;
+        border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .leaderboard-item.is-placeholder .leaderboard-name,
+    .leaderboard-item.is-placeholder .leaderboard-meta,
+    .leaderboard-item.is-placeholder .leaderboard-score,
+    .leaderboard-item.is-placeholder .leaderboard-profit {
+        color: rgba(226, 232, 240, 0.65);
+    }
 }
 
 /* Small mobile devices */

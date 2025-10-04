@@ -744,9 +744,9 @@ class UIManager {
     }
 
     handleLeaderboardUpdate(data = {}) {
-        const entries = Array.isArray(data.entries) ? data.entries : [];
+        const entries = this.normalizeLeaderboardEntries(data.entries, 10);
         this.leaderboardState.lastUpdate = data.updatedAt || Date.now();
-        this.leaderboardState.totalPlayers = data.totalPlayers || entries.length;
+        this.leaderboardState.totalPlayers = data.totalPlayers || entries.filter(entry => !entry.isPlaceholder).length;
         this.ensureCurrentPlayerId();
         this.updateLeaderboard(entries, {
             updatedAt: this.leaderboardState.lastUpdate,
@@ -779,8 +779,42 @@ class UIManager {
         const selfId = this.currentPlayerId;
         Array.from(list.querySelectorAll('.leaderboard-item')).forEach(node => {
             const id = node.dataset.playerId;
-            node.classList.toggle('is-self', Boolean(selfId && id === selfId));
+            const isPlaceholder = node.dataset.placeholder === 'true';
+            node.classList.toggle('is-self', Boolean(selfId && id === selfId && !isPlaceholder));
         });
+    }
+
+    normalizeLeaderboardEntries(rawEntries = [], desiredLength = 10) {
+        const entries = Array.isArray(rawEntries) ? rawEntries.slice(0, desiredLength) : [];
+
+        const normalized = entries.map((entry, index) => {
+            const id = entry?.playerId || entry?.id;
+            return {
+                ...entry,
+                rank: typeof entry?.rank === 'number' ? entry.rank : index + 1,
+                id: id,
+                playerId: id,
+                isPlaceholder: false
+            };
+        });
+
+        while (normalized.length < desiredLength) {
+            const rank = normalized.length + 1;
+            normalized.push({
+                rank,
+                id: `placeholder-${rank}`,
+                playerId: `placeholder-${rank}`,
+                name: 'Aguardando jogador',
+                balance: 0,
+                profit: 0,
+                gamesPlayed: 0,
+                biggestWin: 0,
+                longestStreak: 0,
+                isPlaceholder: true
+            });
+        }
+
+        return normalized;
     }
 
     updateLeaderboard(entries = [], meta = {}) {
@@ -788,15 +822,16 @@ class UIManager {
         const placeholder = this.elements.leaderboardPlaceholder;
         if (!list) return;
 
+        const currentItems = Array.from(list.querySelectorAll('.leaderboard-item'));
         const previousLayout = new Map();
-        const existingItems = Array.from(list.querySelectorAll('.leaderboard-item'));
-        existingItems.forEach(node => {
+        currentItems.forEach(node => {
             previousLayout.set(node.dataset.playerId, {
                 rect: node.getBoundingClientRect()
             });
         });
 
-        const fragment = document.createDocumentFragment();
+        const availableNodes = new Map(currentItems.map(node => [node.dataset.playerId, node]));
+        const orderedNodes = [];
         const newNodes = new Map();
 
         entries.forEach(entry => {
@@ -805,36 +840,41 @@ class UIManager {
                 return;
             }
 
-            let node = this.leaderboardItemCache.get(id);
+            let node = availableNodes.get(id) || this.leaderboardItemCache.get(id);
             if (!node) {
                 node = this.createLeaderboardItem(entry);
-                this.leaderboardItemCache.set(id, node);
             }
+
+            this.leaderboardItemCache.set(id, node);
+            availableNodes.delete(id);
 
             this.updateLeaderboardItem(node, entry);
-            fragment.appendChild(node);
-            newNodes.set(id, node);
+            node.dataset.placeholder = entry.isPlaceholder ? 'true' : 'false';
+
+            orderedNodes.push(node);
+
+            if (!entry.isPlaceholder) {
+                newNodes.set(id, node);
+            }
         });
 
-        if (placeholder && placeholder.parentElement !== list) {
-            list.appendChild(placeholder);
-        }
+        // Remove nós que não fazem mais parte do top 10
+        availableNodes.forEach((node, id) => {
+            node.remove();
+            this.leaderboardItemCache.delete(id);
+        });
 
-        existingItems.forEach(node => node.remove());
+        const fragment = document.createDocumentFragment();
+        orderedNodes.forEach(node => fragment.appendChild(node));
 
-        if (entries.length > 0) {
-            if (placeholder) {
-                placeholder.classList.add('hidden');
-                list.insertBefore(fragment, placeholder);
-            } else {
-                list.appendChild(fragment);
+        if (placeholder) {
+            placeholder.classList.add('hidden');
+            if (placeholder.parentElement !== list) {
+                list.appendChild(placeholder);
             }
+            list.insertBefore(fragment, placeholder);
         } else {
-            if (placeholder) {
-                placeholder.classList.remove('hidden');
-            } else {
-                list.appendChild(fragment);
-            }
+            list.appendChild(fragment);
         }
 
         this.animateLeaderboard(previousLayout, newNodes);
@@ -887,11 +927,14 @@ class UIManager {
         const id = entry.playerId || entry.id;
         node.dataset.playerId = id;
         node.dataset.rank = entry.rank;
+        const isPlaceholder = Boolean(entry.isPlaceholder);
+        node.dataset.placeholder = isPlaceholder ? 'true' : 'false';
 
         node.classList.toggle('top-1', entry.rank === 1);
         node.classList.toggle('top-2', entry.rank === 2);
         node.classList.toggle('top-3', entry.rank === 3);
-        node.classList.toggle('is-self', id === this.currentPlayerId);
+        node.classList.toggle('is-self', id === this.currentPlayerId && !isPlaceholder);
+        node.classList.toggle('is-placeholder', isPlaceholder);
 
         const rankEl = node.querySelector('.leaderboard-rank');
         if (rankEl) {
@@ -901,7 +944,7 @@ class UIManager {
         const nameRow = node.querySelector('.leaderboard-name');
         if (nameRow) {
             const existingCrown = nameRow.querySelector('.leaderboard-crown');
-            if (entry.rank && entry.rank <= 3) {
+            if (!isPlaceholder && entry.rank && entry.rank <= 3) {
                 const crown = this.createCrownElement(entry.rank);
                 if (existingCrown) {
                     existingCrown.replaceWith(crown);
@@ -918,27 +961,38 @@ class UIManager {
                 nameText.className = 'leaderboard-name-text';
                 nameRow.appendChild(nameText);
             }
-            nameText.textContent = entry.name || 'Jogador';
+            nameText.textContent = isPlaceholder ? 'Aguardando jogador' : (entry.name || 'Jogador');
         }
 
         const metaRow = node.querySelector('.leaderboard-meta');
         if (metaRow) {
             metaRow.innerHTML = '';
-            metaRow.appendChild(this.buildMetaChip('Jogos', entry.gamesPlayed ?? 0));
-            metaRow.appendChild(this.buildMetaChip('Maior win', this.formatCurrency(entry.biggestWin ?? 0)));
-            metaRow.appendChild(this.buildMetaChip('Streak', `${entry.longestStreak ?? 0}x`));
+            if (isPlaceholder) {
+                metaRow.appendChild(this.buildMetaChip('Jogos', '--'));
+                metaRow.appendChild(this.buildMetaChip('Maior win', '--'));
+                metaRow.appendChild(this.buildMetaChip('Streak', '--'));
+            } else {
+                metaRow.appendChild(this.buildMetaChip('Jogos', entry.gamesPlayed ?? 0));
+                metaRow.appendChild(this.buildMetaChip('Maior win', this.formatCurrency(entry.biggestWin ?? 0)));
+                metaRow.appendChild(this.buildMetaChip('Streak', `${entry.longestStreak ?? 0}x`));
+            }
         }
 
         const score = node.querySelector('.leaderboard-score');
         if (score) {
-            score.textContent = this.formatCurrency(entry.balance ?? 0);
+            score.textContent = isPlaceholder ? '--' : this.formatCurrency(entry.balance ?? 0);
         }
 
         const profit = node.querySelector('.leaderboard-profit');
         if (profit) {
-            const profitInfo = this.formatProfit(entry.profit ?? (entry.balance - 1000));
-            profit.textContent = `Lucro ${profitInfo.text}`;
-            profit.classList.toggle('negative', profitInfo.isNegative);
+            if (isPlaceholder) {
+                profit.textContent = 'Sem dados suficientes';
+                profit.classList.remove('negative');
+            } else {
+                const profitInfo = this.formatProfit(entry.profit ?? (entry.balance - 1000));
+                profit.textContent = `Lucro ${profitInfo.text}`;
+                profit.classList.toggle('negative', profitInfo.isNegative);
+            }
         }
     }
 
