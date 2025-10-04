@@ -118,6 +118,73 @@ input[type="text"]:focus {
     max-width: 100%;
 }
 
+.bots-panel {
+    margin-top: 1.75rem;
+    padding: 1.5rem;
+    border-radius: 16px;
+    background: rgba(15, 23, 42, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+.bots-header h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+}
+
+.bots-header p {
+    color: #a0aec0;
+    font-size: 0.9rem;
+    line-height: 1.5;
+}
+
+.bots-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+.form-group.compact {
+    margin-bottom: 0;
+    gap: 0.4rem;
+}
+
+.bet-range-inputs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.bet-range-inputs input {
+    flex: 1;
+}
+
+.range-separator {
+    color: #a0aec0;
+    font-size: 0.85rem;
+}
+
+.bot-action-buttons {
+    display: flex;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.secondary-btn.accent {
+    background: linear-gradient(135deg, #68d391, #38a169);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.05);
+}
+
+.secondary-btn.accent:hover {
+    background: linear-gradient(135deg, #48bb78, #2f855a);
+    color: white;
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
 .admin-crash-btn {
     padding: 0.85rem;
     border: none;
@@ -182,6 +249,10 @@ input[type="text"]:focus {
 
 .status-message.error {
     color: #fc8181;
+}
+
+.status-message.info {
+    color: #63b3ed;
 }
 
 .connection-online {

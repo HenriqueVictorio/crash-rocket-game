@@ -22,6 +22,7 @@ Um jogo Crash multiplayer em tempo real com HTML5 Canvas, Node.js e Socket.IO.
 - Informe a senha **henrique12** para habilitar o painel.
 - O painel mostra o status atual da conexão e permite enviar o comando de *force crash*.
 - A sessão é lembrada no mesmo navegador para facilitar acessos futuros (limpe o cache para remover a credencial).
+- Utilize a seção **Simulação de Bots** para acionar clientes artificiais que fazem apostas automáticas, ajudando a estressar o servidor em ambiente de teste.
 
 ## �🛠️ Tecnologias
 
