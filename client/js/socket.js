@@ -1,5 +1,7 @@
 // Socket.IO client connection and event handling
 
+const DEFAULT_TUNNEL_URL = 'https://elected-design-jets-repair.trycloudflare.com';
+
 class SocketManager {
     constructor() {
         this.socket = null;
@@ -27,19 +29,27 @@ class SocketManager {
     
     loadServerUrl() {
         // Tentar carregar URL salva no localStorage
-        const savedUrl = localStorage.getItem('crash-rocket-server-url');
-        
-        if (savedUrl) {
-            this.currentServerUrl = savedUrl;
-        } else {
-            // URLs padrão baseadas no ambiente
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                this.currentServerUrl = 'https://elected-design-jets-repair.trycloudflare.com';
-            } else {
-                this.currentServerUrl = 'https://elected-design-jets-repair.trycloudflare.com';
-            }
+        let savedUrl = null;
+
+        try {
+            savedUrl = localStorage.getItem('crash-rocket-server-url');
+        } catch (error) {
+            console.warn('⚠️ Não foi possível acessar o localStorage:', error);
         }
-        
+
+        if (savedUrl && this.isValidUrl(savedUrl)) {
+            if (this.isDeprecatedTunnelUrl(savedUrl)) {
+                console.log('♻️ Atualizando URL do túnel salva para o novo endereço padrão.');
+                this.persistServerUrl(DEFAULT_TUNNEL_URL);
+                this.currentServerUrl = DEFAULT_TUNNEL_URL;
+            } else {
+                this.currentServerUrl = savedUrl;
+            }
+        } else {
+            this.currentServerUrl = this.resolveDefaultUrl();
+            this.persistServerUrl(this.currentServerUrl);
+        }
+
         console.log('🔌 URL do servidor carregada:', this.currentServerUrl);
         this.connect();
     }
@@ -51,7 +61,7 @@ class SocketManager {
         }
         
         this.currentServerUrl = url;
-        localStorage.setItem('crash-rocket-server-url', url);
+        this.persistServerUrl(url);
         
         // Reconectar com nova URL
         this.disconnect();
@@ -67,6 +77,32 @@ class SocketManager {
         }
     }
     
+    resolveDefaultUrl() {
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            return DEFAULT_TUNNEL_URL;
+        }
+        return DEFAULT_TUNNEL_URL;
+    }
+
+    isDeprecatedTunnelUrl(url) {
+        if (!url) {
+            return false;
+        }
+        const normalized = url.trim().toLowerCase();
+        if (!normalized.includes('trycloudflare.com')) {
+            return false;
+        }
+        return normalized !== DEFAULT_TUNNEL_URL.toLowerCase();
+    }
+
+    persistServerUrl(url) {
+        try {
+            localStorage.setItem('crash-rocket-server-url', url);
+        } catch (error) {
+            console.warn('⚠️ Não foi possível salvar a URL do servidor no localStorage:', error);
+        }
+    }
+
     async testConnection(url) {
         return new Promise((resolve) => {
             const testSocket = io(url, {
