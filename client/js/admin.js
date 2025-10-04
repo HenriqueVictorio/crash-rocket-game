@@ -16,7 +16,6 @@ const html = {
     lastResult: document.getElementById('last-result')
 };
 
-let socketManager = null;
 let connectionStatusListener = null;
 let reconnectListener = null;
 
@@ -116,6 +115,7 @@ function toggleAdminSection(show) {
 }
 
 function updateConnectionDetails() {
+    const socketManager = window.socketManager;
     if (!socketManager || !html.connectionStatus || !html.serverUrl) {
         return;
     }
@@ -128,7 +128,7 @@ function updateConnectionDetails() {
     html.socketId.textContent = connected && socketId ? socketId : '-';
 }
 
-function attachSocketListeners() {
+function attachSocketListeners(socketManager) {
     if (!socketManager) return;
 
     detachSocketListeners();
@@ -152,6 +152,7 @@ function attachSocketListeners() {
 }
 
 function detachSocketListeners() {
+    const socketManager = window.socketManager;
     if (!socketManager) return;
     if (connectionStatusListener) {
         socketManager.off('connection_status', connectionStatusListener);
@@ -189,6 +190,7 @@ function setCrashButtonLoading(isLoading) {
 }
 
 async function triggerForceCrash() {
+    const socketManager = window.socketManager;
     if (!socketManager) {
         setLastResult('SocketManager indisponível.', 'error');
         return;
@@ -251,8 +253,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     initializeUI();
 
     try {
-        socketManager = await waitForSocketManager();
-        attachSocketListeners();
+        const manager = await waitForSocketManager();
+        attachSocketListeners(manager);
         updateConnectionDetails();
     } catch (error) {
         console.error(error);
