@@ -22,6 +22,7 @@ body {
 /* Painel de controle */
 .control-panel {
     background: rgba(45, 55, 72, 0.95);
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     padding: 1.5rem;
@@ -30,15 +31,51 @@ body {
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
 }
 
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 1.5rem;
+}
+
 .panel-header h2 {
     font-size: 1.5rem;
     font-weight: 700;
-    margin-bottom: 1.5rem;
+    margin: 0;
     text-align: center;
     background: linear-gradient(135deg, #e53e3e, #ff6b6b);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+}
+
+.admin-crash-btn {
+    padding: 0.5rem 0.9rem;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(135deg, #f56565, #c53030);
+    color: white;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(229, 62, 62, 0.35);
+    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.admin-crash-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px rgba(229, 62, 62, 0.45);
+}
+
+.admin-crash-btn:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px rgba(229, 62, 62, 0.35);
+}
+
+.admin-crash-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
 }
 
 /* Toggle Normal/Auto */
@@ -361,6 +398,7 @@ input:checked + .slider:before {
     background: rgba(0, 0, 0, 0.7);
     padding: 1rem 2rem;
     border-radius: 12px;
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     transition: all 0.1s ease-out;
 }
@@ -374,6 +412,7 @@ input:checked + .slider:before {
     background: rgba(229, 62, 62, 0.9);
     padding: 1.5rem 2rem;
     border-radius: 12px;
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
     border: 2px solid #e53e3e;
 }
@@ -402,6 +441,7 @@ input:checked + .slider:before {
     background: rgba(0, 0, 0, 0.7);
     padding: 1.5rem 2rem;
     border-radius: 12px;
+    -webkit-backdrop-filter: blur(10px);
     backdrop-filter: blur(10px);
 }
 
@@ -434,12 +474,17 @@ input:checked + .slider:before {
     gap: 0.5rem;
     overflow-x: auto;
     padding: 0.5rem 0;
-    scrollbar-width: none;
     -ms-overflow-style: none;
 }
 
 .history-container::-webkit-scrollbar {
     display: none;
+}
+
+@supports (scrollbar-width: none) {
+    .history-container {
+        scrollbar-width: none;
+    }
 }
 
 .history-item {
@@ -534,8 +579,8 @@ input:checked + .slider:before {
     align-items: center;
     gap: 0.5rem;
     background: rgba(0, 0, 0, 0.8);
-    backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
     color: white;
     padding: 0.5rem 1rem;
     border-radius: 20px;
@@ -589,8 +634,8 @@ input:checked + .slider:before {
     right: 0;
     min-width: 350px;
     background: rgba(45, 55, 72, 0.95);
-    backdrop-filter: blur(15px);
     -webkit-backdrop-filter: blur(15px);
+    backdrop-filter: blur(15px);
     border: 1px solid rgba(255, 255, 255, 0.1);
     border-radius: 12px;
     padding: 1.5rem;

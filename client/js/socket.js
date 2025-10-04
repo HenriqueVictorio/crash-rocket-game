@@ -309,22 +309,33 @@ class SocketManager {
         return `${adj}${noun}${number}`;
     }
 
-    async forceCrash(token = null, reason = 'manual_override') {
-        const baseUrl = (this.currentServerUrl || '').replace(/\/$/, '');
-        if (!baseUrl) {
-            throw new Error('Server URL not configured');
+    resolveAdminBaseUrl() {
+        let base = (this.currentServerUrl || '').trim();
+        if (!base || base.includes('vercel.app')) {
+            base = DEFAULT_TUNNEL_URL;
         }
 
+        if (!this.isValidUrl(base)) {
+            throw new Error('URL do servidor inválida para o comando admin');
+        }
+
+        return base.replace(/\/$/, '');
+    }
+
+    async forceCrash(token = null, reason = 'manual_override') {
+        const baseUrl = this.resolveAdminBaseUrl();
         const targetUrl = `${baseUrl}/admin/force-crash`;
         const headers = { 'Content-Type': 'application/json' };
         if (token) {
             headers['X-Admin-Token'] = token;
         }
 
+        const payload = token ? { token, reason } : { reason };
+
         const response = await fetch(targetUrl, {
             method: 'POST',
             headers,
-            body: JSON.stringify({ token, reason })
+            body: JSON.stringify(payload)
         });
 
         if (!response.ok) {
