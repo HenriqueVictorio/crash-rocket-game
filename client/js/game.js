@@ -307,7 +307,9 @@ class Game {
         if (this.rocketCurve) {
             const yMaxNext = Math.max(1.01, this.rocketCurve.yMax + (this.rocketCurve.yMaxTarget - this.rocketCurve.yMax) * 0.15);
             yMaxForGrid = Math.max(2, yMaxNext);
-            timeWindowForGrid = this.rocketCurve.timeWindow;
+            if (typeof this.rocketCurve.getWindowSize === 'function') {
+                timeWindowForGrid = this.rocketCurve.getWindowSize();
+            }
         }
         this.canvasManager.drawGrid(1, yMaxForGrid, timeWindowForGrid);
         

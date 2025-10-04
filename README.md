@@ -134,6 +134,8 @@ this.growth = {
 
 > Dica: altere `rate` com incrementos pequenos (±0.005) e observe a curva ao longo de uma partida completa (até 90s) para encontrar o perfil ideal.
 
+O eixo X do gráfico é adaptativo: ele começa exibindo os primeiros 12 s da rodada e amplia progressivamente até 90 s conforme o jogo avança, mantendo a curva sempre visível em toda a largura do canvas.
+
 ## 🌐 Deploy
 
 ### Frontend (Vercel)
