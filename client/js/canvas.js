@@ -142,7 +142,7 @@ class RocketCurve {
         this.marginFactor = 1.1; // margem de 10% acima do atual
         // Escala dinâmica do eixo X (tempo)
         this.minTimeWindow = 12;   // segundos mínimos para preencher a tela
-        this.maxTimeWindow = 180;   // limite superior (similar à duração máxima do jogo)
+        this.maxTimeWindow = 500;   // limite superior (similar à duração máxima do jogo)
         this.timeWindow = this.minTimeWindow;
         this.timeWindowTarget = this.minTimeWindow;
         this.interpolationStep = 0.1; // cria pontos intermediários para curva suave
