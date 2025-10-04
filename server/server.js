@@ -26,7 +26,8 @@ class CrashRocketServer {
         this.gameEngine = new GameEngine(this.io);
         this.playerManager = new PlayerManager();
         
-        this.port = process.env.PORT || 3001;
+    this.port = process.env.PORT || 3001;
+    this.adminSecret = process.env.ADMIN_SECRET || null;
         
         this.setupMiddleware();
         this.setupRoutes();
@@ -90,6 +91,37 @@ class CrashRocketServer {
                 gameStats: this.gameEngine.getStats(),
                 players: this.playerManager.getStats()
             });
+        });
+
+        // Admin: force crash endpoint
+        this.app.post('/admin/force-crash', (req, res) => {
+            try {
+                const token = req.body?.token || req.query?.token || req.headers['x-admin-token'];
+
+                if (this.adminSecret) {
+                    if (!token || token !== this.adminSecret) {
+                        return res.status(401).json({ error: 'Unauthorized' });
+                    }
+                } else {
+                    console.warn('⚠️ ADMIN_SECRET not configured; accepting force crash without token (development mode).');
+                }
+
+                const reason = req.body?.reason || 'admin_api';
+                const result = this.gameEngine.forceCrash(reason);
+
+                if (!result.success) {
+                    return res.status(400).json(result);
+                }
+
+                return res.json({
+                    success: true,
+                    multiplier: result.multiplier,
+                    state: this.gameEngine.getCurrentState()
+                });
+            } catch (error) {
+                console.error('Error handling admin force crash:', error);
+                res.status(500).json({ error: 'Failed to force crash' });
+            }
         });
         
         // Serve static files in production

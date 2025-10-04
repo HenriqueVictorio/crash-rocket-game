@@ -308,6 +308,33 @@ class SocketManager {
         
         return `${adj}${noun}${number}`;
     }
+
+    async forceCrash(token = null, reason = 'manual_override') {
+        const baseUrl = (this.currentServerUrl || '').replace(/\/$/, '');
+        if (!baseUrl) {
+            throw new Error('Server URL not configured');
+        }
+
+        const targetUrl = `${baseUrl}/admin/force-crash`;
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) {
+            headers['X-Admin-Token'] = token;
+        }
+
+        const response = await fetch(targetUrl, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({ token, reason })
+        });
+
+        if (!response.ok) {
+            const errorPayload = await response.json().catch(() => ({}));
+            const message = errorPayload?.error || `Falha ao forçar crash (${response.status})`;
+            throw new Error(message);
+        }
+
+        return response.json();
+    }
     
     // Connection management
     disconnect() {

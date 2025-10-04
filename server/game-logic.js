@@ -210,8 +210,9 @@ class GameEngine extends EventEmitter {
         });
     }
     
-    crashGame() {
-        console.log(`💥 Game ${this.gameId} crashed at ${this.multiplier.toFixed(2)}x`);
+    crashGame(trigger = null) {
+        const reasonSuffix = trigger ? ` (${trigger})` : '';
+        console.log(`💥 Game ${this.gameId} crashed${reasonSuffix} at ${this.multiplier.toFixed(2)}x`);
         
         this.clearTimers();
         this.state = GAME_STATES.CRASHED;
@@ -235,6 +236,23 @@ class GameEngine extends EventEmitter {
         this.stateTimeout = setTimeout(() => {
             this.scheduleNextGame();
         }, 2000); // Show crash for 2 seconds
+    }
+
+    forceCrash(reason = 'admin_override') {
+        if (this.state !== GAME_STATES.FLYING) {
+            return {
+                success: false,
+                error: 'Game is not currently flying'
+            };
+        }
+
+        console.log(`🛑 Force crash requested (${reason})`);
+        this.crashGame(reason);
+
+        return {
+            success: true,
+            multiplier: this.multiplier
+        };
     }
     
     finalizeBets() {
