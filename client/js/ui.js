@@ -676,11 +676,22 @@ class UIManager {
     
     handlePlayerCashedOut(data) {
         if (data.isCurrentPlayer) {
-            const winAmount = data.amount;
-            this.playerBalance += winAmount;
+            const totalPayout = typeof data.amount === 'number' ? data.amount : 0;
+            const betAmount = typeof data.betAmount === 'number' ? data.betAmount : this.currentBet;
+            const profit = Math.max(0, totalPayout - (betAmount || 0));
+
+            this.playerBalance += totalPayout;
             this.updateBalance();
-            this.showLastWin(winAmount);
-            this.showNotification(`Você retirou R$ ${winAmount.toFixed(2)}!`, 'success');
+            this.showLastWin(profit || totalPayout);
+
+            const formattedPayout = totalPayout.toFixed(2);
+            const formattedProfit = profit.toFixed(2);
+            const message = profit > 0
+                ? `Você retirou R$ ${formattedPayout} (lucro R$ ${formattedProfit})!`
+                : `Você retirou R$ ${formattedPayout}!`;
+            this.showNotification(message, 'success');
+
+            this.currentBet = 0;
             this.isPlaying = false;
         }
         
@@ -697,6 +708,7 @@ class UIManager {
         if (data.state === 'waiting') {
             this.isPlaying = false; // IMPORTANTE: Reset para poder apostar no próximo
             this.isPlacingBet = false;
+            this.currentBet = 0;
             this.elements.countdown.style.display = 'none';
             this.elements.waitingScreen.style.display = 'block';
             const nextIn = typeof data.nextGameIn === 'number' ? data.nextGameIn : (typeof data.timeLeft === 'number' ? data.timeLeft / 1000 : null);
@@ -739,6 +751,7 @@ class UIManager {
     // Reset player state
     this.isPlaying = false;
     this.isPlacingBet = false;
+    this.currentBet = 0;
         this.updateStartButton();
         
         // Esconder multiplicador

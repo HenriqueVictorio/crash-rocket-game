@@ -241,6 +241,7 @@ class CrashRocketServer {
                             success: true,
                             multiplier: result.multiplier,
                             amount: result.winAmount,
+                            betAmount: result.betAmount,
                             isCurrentPlayer: true
                         });
                         
@@ -250,6 +251,7 @@ class CrashRocketServer {
                             playerName: player?.name || 'Anonymous',
                             multiplier: result.multiplier,
                             amount: result.winAmount,
+                            betAmount: result.betAmount,
                             isCurrentPlayer: false
                         });
                     } else {
@@ -307,6 +309,7 @@ class CrashRocketServer {
                 playerName: player?.name || 'Anonymous',
                 multiplier: data.multiplier,
                 amount: data.winAmount,
+                betAmount: data.betAmount,
                 isAuto: true,
                 isCurrentPlayer: false
             });

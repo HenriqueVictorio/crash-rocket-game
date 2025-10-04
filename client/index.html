@@ -12,37 +12,6 @@
 </head>
 <body>
     <div class="game-container">
-        <!-- Seletor de Servidor -->
-        <div class="server-selector">
-            <div class="server-indicator" id="server-indicator">
-                <div class="server-dot" id="server-dot"></div>
-                <span class="server-text" id="server-text">Servidor</span>
-                <button class="server-btn" id="server-btn">⚙️</button>
-            </div>
-            <div class="server-dropdown hidden" id="server-dropdown">
-                <div class="server-dropdown-header">
-                    <h3>Configurar Servidor</h3>
-                    <button class="close-dropdown" id="close-dropdown">×</button>
-                </div>
-                <div class="server-options">
-                    <label for="custom-server">URL do Servidor:</label>
-                    <input type="text" id="custom-server" placeholder="https://seu-servidor.com" />
-                    <div class="server-presets">
-                        <button class="preset-btn" data-url="https://elected-design-jets-repair.trycloudflare.com">Cloudflare Tunnel</button>
-                        <button class="preset-btn" data-url="http://localhost:3001">Localhost</button>
-                        <button class="preset-btn" data-url="https://crash-rocket-server.railway.app">Railway</button>
-                    </div>
-                    <div class="server-actions">
-                        <button class="test-connection-btn" id="test-connection">Testar Conexão</button>
-                        <button class="save-server-btn" id="save-server">Salvar & Conectar</button>
-                    </div>
-                    <div class="connection-status" id="connection-status-text">
-                        <span class="status-text">Desconectado</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-
         <!-- Painel de Controle -->
         <div class="control-panel">
             <div class="panel-header">
@@ -58,12 +27,6 @@
                 <div class="player-balance">
                     <span>Saldo: R$ <span id="player-balance">1000.00</span></span>
                 </div>
-            </div>
-            
-            <!-- Toggle Normal/Auto -->
-            <div class="mode-toggle">
-                <button class="toggle-btn active" data-mode="manual">Normal</button>
-                <button class="toggle-btn" data-mode="auto">Auto</button>
             </div>
             
             <!-- Input de Quantia -->
@@ -103,10 +66,7 @@
             
             <!-- Informações do Jogador -->
             <div class="player-info">
-                <div class="balance">
-                    <span>Saldo: R$ <span id="player-balance">1000.00</span></span>
-                </div>
-                <div class="last-win" id="last-win" style="display: none;">
+                <div class="last-win" id="last-win">
                     <span>Última vitória: R$ <span id="last-win-amount">0.00</span></span>
                 </div>
             </div>
