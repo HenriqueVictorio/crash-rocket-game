@@ -224,6 +224,14 @@ class SocketManager {
             this.emit('bet_placed', data);
         });
 
+        this.socket.on('leaderboard_update', (data) => {
+            this.emit('leaderboard_update', data);
+        });
+
+        this.socket.on('leaderboard_rank', (data) => {
+            this.emit('leaderboard_rank', data);
+        });
+
         this.socket.on('error', (data) => {
             console.error('🚨 Erro do servidor:', data);
             this.emit('server_error', data);

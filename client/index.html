@@ -107,6 +107,31 @@
                     <!-- Itens do histórico serão adicionados dinamicamente -->
                 </div>
             </div>
+
+            <!-- Leaderboard -->
+            <div class="leaderboard-section">
+                <div class="leaderboard-header">
+                    <h3>Leaderboard</h3>
+                    <span class="leaderboard-updated" id="leaderboard-updated">Atualizado agora</span>
+                </div>
+                <div class="leaderboard-list" id="leaderboard-list" aria-live="polite">
+                    <div class="leaderboard-placeholder" id="leaderboard-placeholder">
+                        <span>Nenhum destaque ainda. Seja o primeiro a liderar!</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Card de posição do jogador -->
+            <div class="player-rank-card hidden" id="player-rank-card" aria-live="polite">
+                <div class="player-rank-content">
+                    <div class="player-rank-label">Sua posição</div>
+                    <div class="player-rank-number" id="player-rank-number">-</div>
+                    <div class="player-rank-details" id="player-rank-details">Jogue para entrar no ranking</div>
+                    <div class="player-rank-progress">
+                        <div class="player-rank-progress-bar" id="player-rank-progress"></div>
+                    </div>
+                </div>
+            </div>
             
             <!-- Jogadores Online (Placeholder) -->
             <div class="players-section">

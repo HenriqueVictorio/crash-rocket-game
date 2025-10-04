@@ -107,6 +107,7 @@ class GameEngine extends EventEmitter {
         this.state = GAME_STATES.FLYING;
         this.multiplier = 1.00;
         this.startTime = Date.now();
+        this.cashedOutPlayers.clear();
     this._lastBroadcastMultiplier = this.multiplier;
         
         this.emit('game_state_changed', this.buildMultiplierPayload(0));
@@ -225,11 +226,17 @@ class GameEngine extends EventEmitter {
         this.addToHistory(this.multiplier);
         
         // Calculate payouts for players who didn't cash out
-        this.finalizeBets();
+        const settlement = this.finalizeBets();
         
         this.emit('game_state_changed', {
             state: this.state,
             finalMultiplier: this.multiplier
+        });
+
+        this.emit('round_settled', {
+            finalMultiplier: this.multiplier,
+            losers: settlement.losers,
+            participants: settlement.participants
         });
         
         // Schedule next game
@@ -256,8 +263,30 @@ class GameEngine extends EventEmitter {
     }
     
     finalizeBets() {
-        // Reset active players for next game
+        const participants = [];
+        const losers = [];
+
+        for (const [playerId, playerData] of this.activePlayers.entries()) {
+            const record = {
+                playerId,
+                betAmount: playerData.bet,
+                autoCashOut: playerData.autoCashOut,
+                hasWon: this.cashedOutPlayers.has(playerId)
+            };
+            participants.push(record);
+
+            if (!record.hasWon) {
+                losers.push({
+                    playerId,
+                    betAmount: playerData.bet
+                });
+            }
+        }
+
         this.activePlayers.clear();
+        this.cashedOutPlayers.clear();
+
+        return { participants, losers };
     }
     
     addToHistory(multiplier) {

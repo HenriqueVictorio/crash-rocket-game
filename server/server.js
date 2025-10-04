@@ -34,6 +34,61 @@ class CrashRocketServer {
         this.setupSocketHandlers();
         this.startServer();
     }
+
+    getStartingBalance() {
+        return 1000;
+    }
+
+    broadcastLeaderboard() {
+        const snapshot = this.playerManager.getLeaderboardSnapshot(10);
+        const payload = {
+            entries: snapshot.entries.map(entry => ({
+                rank: entry.rank,
+                playerId: entry.id,
+                name: entry.name,
+                balance: Number(entry.balance.toFixed(2)),
+                profit: Number(entry.profit.toFixed(2)),
+                totalWinnings: Number(entry.totalWinnings.toFixed(2)),
+                biggestWin: Number(entry.biggestWin.toFixed(2)),
+                longestStreak: entry.longestStreak,
+                gamesPlayed: entry.gamesPlayed
+            })),
+            totalPlayers: snapshot.totalPlayers,
+            updatedAt: Date.now()
+        };
+
+        this.io.emit('leaderboard_update', payload);
+        this.sendIndividualRankUpdates(snapshot.sortedPlayers);
+    }
+
+    sendIndividualRankUpdates(sortedPlayers = null) {
+        const reference = sortedPlayers || this.playerManager.getSortedPlayers();
+        const totalPlayers = reference.length;
+        const baseBalance = this.getStartingBalance();
+        const timestamp = Date.now();
+
+        reference.forEach((player, index) => {
+            const socket = this.playerManager.getPlayerSocket(player.id);
+            if (!socket) {
+                return;
+            }
+
+            const balance = Number((player.balance || 0).toFixed(2));
+            const profit = Number((balance - baseBalance).toFixed(2));
+
+            socket.emit('leaderboard_rank', {
+                rank: index + 1,
+                totalPlayers,
+                balance,
+                profit,
+                totalWinnings: Number((player.totalWinnings || 0).toFixed(2)),
+                biggestWin: Number((player.biggestWin || 0).toFixed(2)),
+                longestStreak: Number(player.longestStreak || 0),
+                gamesPlayed: Number(player.gamesPlayed || 0),
+                updatedAt: timestamp
+            });
+        });
+    }
     
     setupMiddleware() {
         // Security and optimization
@@ -151,6 +206,7 @@ class CrashRocketServer {
             
             // Add player
             this.playerManager.addPlayer(socket.id, socket);
+            this.broadcastLeaderboard();
             
             // Send current game state
             const gameState = this.gameEngine.getCurrentState();
@@ -176,6 +232,8 @@ class CrashRocketServer {
                             playerId: socket.id,
                             playerName: player.name
                         });
+
+                        this.broadcastLeaderboard();
                     }
                 } catch (error) {
                     console.error('Error handling join game:', error);
@@ -192,6 +250,7 @@ class CrashRocketServer {
                     if (player) {
                         player.name = name;
                         socket.emit('player_name_updated', { success: true, name });
+                        this.broadcastLeaderboard();
                     }
                 } catch (error) {
                     console.error('Error updating player name:', error);
@@ -250,6 +309,8 @@ class CrashRocketServer {
                             playerName: player?.name || 'Anonymous',
                             amount: amount
                         });
+
+                        this.broadcastLeaderboard();
                     } else {
                         socket.emit('bet_placed', { success: false, error: 'Failed to place bet' });
                     }
@@ -296,6 +357,8 @@ class CrashRocketServer {
                             balance: playerBalance,
                             isCurrentPlayer: false
                         });
+
+                        this.broadcastLeaderboard();
                     } else {
                         socket.emit('error', { message: result.error || 'Failed to cash out' });
                     }
@@ -319,6 +382,8 @@ class CrashRocketServer {
                 socket.broadcast.emit('player_left', {
                     playerId: socket.id
                 });
+
+                this.broadcastLeaderboard();
             });
             
             // Handle errors
@@ -373,6 +438,18 @@ class CrashRocketServer {
                     isCurrentPlayer: true
                 });
             }
+
+            this.broadcastLeaderboard();
+        });
+
+        this.gameEngine.on('round_settled', (settlement) => {
+            if (settlement?.losers?.length) {
+                settlement.losers.forEach(({ playerId }) => {
+                    this.playerManager.resetPlayerGame(playerId);
+                });
+            }
+
+            this.broadcastLeaderboard();
         });
     }
     
