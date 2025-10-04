@@ -124,6 +124,33 @@ class PlayerManager {
         return false;
     }
     
+    recordWin(playerId, winAmount = 0, metadata = {}) {
+        const player = this.players.get(playerId);
+        if (!player) {
+            return null;
+        }
+
+        const amount = Number(winAmount) || 0;
+        this.updatePlayerBalance(playerId, amount);
+
+        player.currentBet = 0;
+        player.isPlaying = false;
+        player.autoCashOut = null;
+    player.lastSeenAt = Date.now();
+        player.gamesPlayed++;
+        player.sessionGames++;
+        player.lastWinAmount = amount;
+        player.lastBetAmount = Number(metadata.betAmount || 0);
+        player.lastMultiplier = Number(metadata.multiplier || 0);
+
+        return {
+            balance: Number(player.balance.toFixed(2)),
+            biggestWin: Number(player.biggestWin || 0),
+            longestStreak: Number(player.longestStreak || 0),
+            currentStreak: Number(player.currentStreak || 0)
+        };
+    }
+
     cashOut(playerId, multiplier) {
         const player = this.players.get(playerId);
         if (player && player.isPlaying) {

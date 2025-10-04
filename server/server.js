@@ -39,36 +39,55 @@ class CrashRocketServer {
         return 1000;
     }
 
-    broadcastLeaderboard() {
+    buildLeaderboardSnapshot() {
         const snapshot = this.playerManager.getLeaderboardSnapshot(10);
-        const payload = {
-            entries: snapshot.entries.map(entry => ({
-                rank: entry.rank,
-                playerId: entry.id,
-                name: entry.name,
-                balance: Number(entry.balance.toFixed(2)),
-                profit: Number(entry.profit.toFixed(2)),
-                totalWinnings: Number(entry.totalWinnings.toFixed(2)),
-                biggestWin: Number(entry.biggestWin.toFixed(2)),
-                longestStreak: entry.longestStreak,
-                gamesPlayed: entry.gamesPlayed
-            })),
-            totalPlayers: snapshot.totalPlayers,
-            updatedAt: Date.now()
-        };
+        const timestamp = Date.now();
 
-        this.io.emit('leaderboard_update', payload);
-        this.sendIndividualRankUpdates(snapshot.sortedPlayers);
+        return {
+            payload: {
+                entries: snapshot.entries.map(entry => ({
+                    rank: entry.rank,
+                    playerId: entry.id,
+                    name: entry.name,
+                    balance: Number(entry.balance.toFixed(2)),
+                    profit: Number(entry.profit.toFixed(2)),
+                    totalWinnings: Number(entry.totalWinnings.toFixed(2)),
+                    biggestWin: Number(entry.biggestWin.toFixed(2)),
+                    longestStreak: entry.longestStreak,
+                    gamesPlayed: entry.gamesPlayed
+                })),
+                totalPlayers: snapshot.totalPlayers,
+                updatedAt: timestamp
+            },
+            sortedPlayers: snapshot.sortedPlayers,
+            timestamp
+        };
     }
 
-    sendIndividualRankUpdates(sortedPlayers = null) {
+    broadcastLeaderboard() {
+        const { payload, sortedPlayers, timestamp } = this.buildLeaderboardSnapshot();
+        this.io.emit('leaderboard_update', payload);
+        this.sendIndividualRankUpdates(sortedPlayers, timestamp);
+    }
+
+    sendLeaderboardToSocket(socket) {
+        if (!socket) return;
+        const { payload, sortedPlayers, timestamp } = this.buildLeaderboardSnapshot();
+        socket.emit('leaderboard_update', payload);
+        this.sendIndividualRankUpdates(sortedPlayers, timestamp, socket);
+    }
+
+    sendIndividualRankUpdates(sortedPlayers = null, timestamp = Date.now(), targetSocket = null) {
         const reference = sortedPlayers || this.playerManager.getSortedPlayers();
         const totalPlayers = reference.length;
         const baseBalance = this.getStartingBalance();
-        const timestamp = Date.now();
 
         reference.forEach((player, index) => {
-            const socket = this.playerManager.getPlayerSocket(player.id);
+            if (targetSocket && player.id !== targetSocket.id) {
+                return;
+            }
+
+            const socket = targetSocket || this.playerManager.getPlayerSocket(player.id);
             if (!socket) {
                 return;
             }
@@ -206,7 +225,7 @@ class CrashRocketServer {
             
             // Add player
             this.playerManager.addPlayer(socket.id, socket);
-            this.broadcastLeaderboard();
+            this.sendLeaderboardToSocket(socket);
             
             // Send current game state
             const gameState = this.gameEngine.getCurrentState();
@@ -232,8 +251,6 @@ class CrashRocketServer {
                             playerId: socket.id,
                             playerName: player.name
                         });
-
-                        this.broadcastLeaderboard();
                     }
                 } catch (error) {
                     console.error('Error handling join game:', error);
@@ -250,7 +267,6 @@ class CrashRocketServer {
                     if (player) {
                         player.name = name;
                         socket.emit('player_name_updated', { success: true, name });
-                        this.broadcastLeaderboard();
                     }
                 } catch (error) {
                     console.error('Error updating player name:', error);
@@ -263,7 +279,7 @@ class CrashRocketServer {
                 try {
                     const { amount, autoCashOut } = data;
                     
-                    // Validate bet
+                                    // socket.broadcast.emit('player_cashed_out', {
                     if (!this.isValidBet(amount)) {
                         socket.emit('error', { message: 'Invalid bet amount' });
                         return;
@@ -309,8 +325,6 @@ class CrashRocketServer {
                             playerName: player?.name || 'Anonymous',
                             amount: amount
                         });
-
-                        this.broadcastLeaderboard();
                     } else {
                         socket.emit('bet_placed', { success: false, error: 'Failed to place bet' });
                     }
@@ -326,18 +340,16 @@ class CrashRocketServer {
                     const result = this.gameEngine.cashOut(socket.id);
                     
                     if (result.success) {
+                        const winStats = this.playerManager.recordWin(socket.id, result.winAmount, {
+                            betAmount: result.betAmount,
+                            multiplier: result.multiplier
+                        });
                         const player = this.playerManager.getPlayer(socket.id);
-                        if (player) {
-                            player.isPlaying = false;
-                            player.balance += result.winAmount;
-                            player.totalWinnings += result.winAmount;
-                            player.gamesPlayed++;
-                        }
                         
                         console.log(`💸 Player ${socket.id} cashed out: ${result.multiplier.toFixed(2)}x = R$ ${result.winAmount.toFixed(2)}`);
                         
                         // Notify player com saldo atualizado
-                        const playerBalance = player ? player.balance : null;
+                        const playerBalance = winStats ? winStats.balance : (player ? Number(player.balance.toFixed(2)) : null);
                         socket.emit('player_cashed_out', {
                             success: true,
                             multiplier: result.multiplier,
@@ -357,8 +369,6 @@ class CrashRocketServer {
                             balance: playerBalance,
                             isCurrentPlayer: false
                         });
-
-                        this.broadcastLeaderboard();
                     } else {
                         socket.emit('error', { message: result.error || 'Failed to cash out' });
                     }
@@ -382,8 +392,6 @@ class CrashRocketServer {
                 socket.broadcast.emit('player_left', {
                     playerId: socket.id
                 });
-
-                this.broadcastLeaderboard();
             });
             
             // Handle errors
@@ -402,14 +410,12 @@ class CrashRocketServer {
         });
         
         this.gameEngine.on('player_auto_cashed_out', (data) => {
+            const winStats = this.playerManager.recordWin(data.playerId, data.winAmount, {
+                betAmount: data.betAmount,
+                multiplier: data.multiplier
+            });
             const player = this.playerManager.getPlayer(data.playerId);
-            if (player) {
-                player.isPlaying = false;
-                player.balance += data.winAmount;
-                player.totalWinnings += data.winAmount;
-                player.gamesPlayed++;
-            }
-            const playerBalance = player ? player.balance : null;
+            const playerBalance = winStats ? winStats.balance : (player ? Number(player.balance.toFixed(2)) : null);
             
             // Notify all players
             this.io.emit('player_cashed_out', {
@@ -439,7 +445,6 @@ class CrashRocketServer {
                 });
             }
 
-            this.broadcastLeaderboard();
         });
 
         this.gameEngine.on('round_settled', (settlement) => {
