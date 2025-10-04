@@ -748,44 +748,6 @@ input:checked + .slider:before {
     transition: width 0.45s ease;
 }
 
-/* Seção de jogadores */
-.players-section {
-    display: none; /* Oculto por padrão, será implementado depois */
-}
-
-.players-section h3 {
-    font-size: 1.1rem;
-    font-weight: 600;
-    margin-bottom: 0.75rem;
-    color: #e2e8f0;
-}
-
-.players-list {
-    max-height: 200px;
-    overflow-y: auto;
-}
-
-.player-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem 0.75rem;
-    background: rgba(45, 55, 72, 0.5);
-    border-radius: 6px;
-    margin-bottom: 0.5rem;
-}
-
-.player-name {
-    font-weight: 500;
-    color: #e2e8f0;
-}
-
-.player-cashout {
-    font-size: 0.9rem;
-    color: #68d391;
-    font-weight: 600;
-}
-
 /* Classes utilitárias */
 .hidden {
     display: none !important;

@@ -152,9 +152,6 @@ class UIManager {
             playerRankNumber: document.getElementById('player-rank-number'),
             playerRankDetails: document.getElementById('player-rank-details'),
             playerRankProgress: document.getElementById('player-rank-progress'),
-            
-            // Players
-            playersList: document.getElementById('players-list'),
         };
     }
     
@@ -1099,17 +1096,25 @@ class UIManager {
             return;
         }
 
-        if (!data.rank || !data.totalPlayers) {
-            card.classList.add('hidden');
+        const isValidRank = typeof data.rank === 'number' && data.rank >= 1;
+        const totalPlayers = typeof data.totalPlayers === 'number' && data.totalPlayers > 0
+            ? data.totalPlayers
+            : null;
+
+        card.classList.remove('hidden');
+
+        if (!isValidRank || !totalPlayers) {
+            numberEl.textContent = '—';
+            detailsEl.textContent = 'Jogue para entrar no ranking';
+            detailsEl.classList.remove('negative');
+            progressEl.style.width = '0%';
             return;
         }
 
-        card.classList.remove('hidden');
         numberEl.textContent = `#${data.rank}`;
 
         const balance = this.formatCurrency(data.balance ?? 0);
         const profitInfo = this.formatProfit(data.profit ?? 0);
-        const totalPlayers = data.totalPlayers;
         const progressRatio = totalPlayers > 1
             ? Math.max(0, Math.min(100, 100 - ((data.rank - 1) / (totalPlayers - 1)) * 100))
             : 100;
