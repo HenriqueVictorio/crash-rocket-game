@@ -16,7 +16,14 @@ Um jogo Crash multiplayer em tempo real com HTML5 Canvas, Node.js e Socket.IO.
 - **Histórico**: Veja os últimos resultados
 - **Responsivo**: Funciona em desktop e mobile
 
-## 🛠️ Tecnologias
+## � Painel Administrativo
+
+- Acesse `client/admin.html` diretamente no navegador ou publique em uma rota protegida.
+- Informe a senha **henrique12** para habilitar o painel.
+- O painel mostra o status atual da conexão e permite enviar o comando de *force crash*.
+- A sessão é lembrada no mesmo navegador para facilitar acessos futuros (limpe o cache para remover a credencial).
+
+## �🛠️ Tecnologias
 
 - **Frontend**: HTML5 Canvas, CSS3, JavaScript ES6+
 - **Backend**: Node.js, Express, Socket.IO

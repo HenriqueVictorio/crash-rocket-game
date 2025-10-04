@@ -32,50 +32,18 @@ body {
 }
 
 .panel-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 0.75rem;
     margin-bottom: 1.5rem;
+    text-align: center;
 }
 
 .panel-header h2 {
     font-size: 1.5rem;
     font-weight: 700;
-    margin: 0;
-    text-align: center;
+    margin-bottom: 0;
     background: linear-gradient(135deg, #e53e3e, #ff6b6b);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
-}
-
-.admin-crash-btn {
-    padding: 0.5rem 0.9rem;
-    border: none;
-    border-radius: 999px;
-    background: linear-gradient(135deg, #f56565, #c53030);
-    color: white;
-    font-weight: 600;
-    cursor: pointer;
-    box-shadow: 0 4px 12px rgba(229, 62, 62, 0.35);
-    transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
-}
-
-.admin-crash-btn:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px rgba(229, 62, 62, 0.45);
-}
-
-.admin-crash-btn:active {
-    transform: translateY(0);
-    box-shadow: 0 2px 8px rgba(229, 62, 62, 0.35);
-}
-
-.admin-crash-btn:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
-    box-shadow: none;
 }
 
 /* Toggle Normal/Auto */

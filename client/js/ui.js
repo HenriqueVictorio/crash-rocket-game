@@ -123,7 +123,6 @@ class UIManager {
             
             // Players
             playersList: document.getElementById('players-list'),
-            forceCrashBtn: document.getElementById('force-crash-btn')
         };
     }
     
@@ -157,12 +156,6 @@ class UIManager {
             this.handleMainAction();
         });
 
-        if (this.elements.forceCrashBtn) {
-            this.elements.forceCrashBtn.addEventListener('click', (event) => {
-                const resetToken = event.altKey;
-                this.handleForceCrash(resetToken);
-            });
-        }
         
         // Bet amount validation
         this.elements.betAmount.addEventListener('input', (e) => {
@@ -718,53 +711,6 @@ class UIManager {
         this.updateStartButton();
     }
 
-    handleForceCrash(resetToken = false) {
-        if (!window.socketManager || typeof window.socketManager.forceCrash !== 'function') {
-            this.showNotification('Servidor não disponível para forçar crash.', 'error');
-            return;
-        }
-
-        const button = this.elements.forceCrashBtn;
-        if (!button) {
-            return;
-        }
-
-        if (resetToken) {
-            localStorage.removeItem('crash-rocket-admin-token');
-        }
-
-        let token = localStorage.getItem('crash-rocket-admin-token');
-        if (token === null) {
-            const input = prompt('Token admin (deixe vazio se não houver):', '');
-            if (input === null) {
-                return;
-            }
-            token = input.trim();
-            localStorage.setItem('crash-rocket-admin-token', token);
-        }
-
-        button.disabled = true;
-        this.showNotification('Enviando comando de crash...', 'info');
-
-        window.socketManager.forceCrash(token || null, 'manual_button')
-            .then((response) => {
-                this.showNotification('Crash forçado com sucesso!', 'success');
-                console.log('✅ Crash manual executado:', response);
-            })
-            .catch((error) => {
-                console.error('Erro ao forçar crash:', error);
-                if (error?.message?.includes('Unauthorized')) {
-                    localStorage.removeItem('crash-rocket-admin-token');
-                }
-                const message = error?.message || 'Falha ao forçar crash';
-                this.showNotification(message, 'error');
-            })
-            .finally(() => {
-                button.disabled = false;
-            });
-    }
-    
-    
     // Game event handlers
     handleGameState(data) {
         console.log('🎯 Mudando estado:', this.gameState, '->', data.state);
@@ -814,10 +760,10 @@ class UIManager {
             }
         }
         
-    // Reset player state
-    this.isPlaying = false;
-    this.isPlacingBet = false;
-    this.currentBet = 0;
+        // Reset player state
+        this.isPlaying = false;
+        this.isPlacingBet = false;
+        this.currentBet = 0;
         this.updateStartButton();
         
         // Esconder multiplicador
