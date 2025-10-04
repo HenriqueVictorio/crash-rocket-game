@@ -202,8 +202,15 @@ class CrashRocketServer {
                         
                         console.log(`💰 Player ${socket.id} placed bet: R$ ${amount}`);
                         
-                        // Confirm bet to this player
-                        socket.emit('bet_placed', { success: true, amount });
+                        // Confirm bet to this player com saldo atualizado
+                        const playerBalance = player ? player.balance : null;
+                        socket.emit('bet_placed', {
+                            success: true,
+                            amount,
+                            betAmount: amount,
+                            balance: playerBalance,
+                            autoCashOut: player?.autoCashOut ?? null
+                        });
 
                         // Notify other players
                         this.io.emit('player_bet', {
@@ -236,12 +243,14 @@ class CrashRocketServer {
                         
                         console.log(`💸 Player ${socket.id} cashed out: ${result.multiplier.toFixed(2)}x = R$ ${result.winAmount.toFixed(2)}`);
                         
-                        // Notify player
+                        // Notify player com saldo atualizado
+                        const playerBalance = player ? player.balance : null;
                         socket.emit('player_cashed_out', {
                             success: true,
                             multiplier: result.multiplier,
                             amount: result.winAmount,
                             betAmount: result.betAmount,
+                            balance: playerBalance,
                             isCurrentPlayer: true
                         });
                         
@@ -252,6 +261,7 @@ class CrashRocketServer {
                             multiplier: result.multiplier,
                             amount: result.winAmount,
                             betAmount: result.betAmount,
+                            balance: playerBalance,
                             isCurrentPlayer: false
                         });
                     } else {
@@ -302,6 +312,7 @@ class CrashRocketServer {
                 player.totalWinnings += data.winAmount;
                 player.gamesPlayed++;
             }
+            const playerBalance = player ? player.balance : null;
             
             // Notify all players
             this.io.emit('player_cashed_out', {
@@ -310,6 +321,8 @@ class CrashRocketServer {
                 multiplier: data.multiplier,
                 amount: data.winAmount,
                 betAmount: data.betAmount,
+                balance: playerBalance,
+                success: true,
                 isAuto: true,
                 isCurrentPlayer: false
             });
@@ -318,7 +331,13 @@ class CrashRocketServer {
             const socket = this.playerManager.getPlayerSocket(data.playerId);
             if (socket) {
                 socket.emit('player_cashed_out', {
-                    ...data,
+                    success: true,
+                    playerId: data.playerId,
+                    multiplier: data.multiplier,
+                    amount: data.winAmount,
+                    betAmount: data.betAmount,
+                    balance: playerBalance,
+                    isAuto: true,
                     isCurrentPlayer: true
                 });
             }

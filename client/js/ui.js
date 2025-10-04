@@ -675,24 +675,36 @@ class UIManager {
     }
     
     handlePlayerCashedOut(data) {
-        if (data.isCurrentPlayer) {
-            const totalPayout = typeof data.amount === 'number' ? data.amount : 0;
-            const betAmount = typeof data.betAmount === 'number' ? data.betAmount : this.currentBet;
-            const profit = Math.max(0, totalPayout - (betAmount || 0));
+        const isCurrentPlayer = !!(data && data.isCurrentPlayer);
+        const totalPayout = typeof data?.amount === 'number' ? data.amount : 0;
+        const betAmount = typeof data?.betAmount === 'number' ? data.betAmount : this.currentBet;
+        const providedBalance = typeof data?.balance === 'number' ? data.balance : null;
+        const profit = Math.max(0, totalPayout - (betAmount || 0));
 
-            this.playerBalance += totalPayout;
+        if (isCurrentPlayer) {
+            if (providedBalance !== null) {
+                this.playerBalance = providedBalance;
+            } else if (totalPayout > 0) {
+                this.playerBalance += totalPayout;
+            }
             this.updateBalance();
-            this.showLastWin(profit || totalPayout);
 
-            const formattedPayout = totalPayout.toFixed(2);
+            if (totalPayout > 0) {
+                this.showLastWin(profit || totalPayout);
+            }
+
+            const formattedPayout = totalPayout > 0 ? totalPayout.toFixed(2) : null;
             const formattedProfit = profit.toFixed(2);
-            const message = profit > 0
-                ? `Você retirou R$ ${formattedPayout} (lucro R$ ${formattedProfit})!`
-                : `Você retirou R$ ${formattedPayout}!`;
+            const message = formattedPayout
+                ? (profit > 0
+                    ? `Você retirou R$ ${formattedPayout} (lucro R$ ${formattedProfit})!`
+                    : `Você retirou R$ ${formattedPayout}!`)
+                : 'Retirada realizada!';
             this.showNotification(message, 'success');
 
             this.currentBet = 0;
             this.isPlaying = false;
+            this.isPlacingBet = false;
         }
         
         this.updateStartButton();
@@ -763,20 +775,46 @@ class UIManager {
     handleBetPlaced(data) {
         // Limpa estado de envio
         this.isPlacingBet = false;
-        if (data && data.success) {
-            if (!this.isPlaying) {
-                this.isPlaying = true;
-                const amount = data.amount ?? this.currentBet;
-                if (typeof amount === 'number' && amount > 0) {
-                    this.playerBalance -= amount;
-                    this.updateBalance();
-                }
-                this.showNotification(`Aposta de R$ ${(data.amount ?? this.currentBet).toFixed(2)} realizada!`, 'success');
+
+        const success = !!(data && data.success);
+        const providedBalance = typeof data?.balance === 'number' ? data.balance : null;
+        const betAmountRaw = typeof data?.betAmount === 'number'
+            ? data.betAmount
+            : (typeof data?.amount === 'number' ? data.amount : this.currentBet);
+        const hasValidBetAmount = typeof betAmountRaw === 'number' && Number.isFinite(betAmountRaw);
+
+        if (success) {
+            const wasPlaying = this.isPlaying;
+            this.isPlaying = true;
+
+            if (hasValidBetAmount) {
+                this.currentBet = betAmountRaw;
             }
+
+            if (providedBalance !== null) {
+                this.playerBalance = providedBalance;
+            } else if (!wasPlaying && hasValidBetAmount) {
+                this.playerBalance = Math.max(0, this.playerBalance - betAmountRaw);
+            }
+
+            this.updateBalance();
+
+            const displayAmount = typeof this.currentBet === 'number' ? this.currentBet : betAmountRaw;
+            if (typeof displayAmount === 'number' && Number.isFinite(displayAmount)) {
+                this.showNotification(`Aposta de R$ ${displayAmount.toFixed(2)} realizada!`, 'success');
+            } else {
+                this.showNotification('Aposta realizada!', 'success');
+            }
+
             this.updateStartButton();
         } else {
-            // Falhou: libera para tentar novamente
+            if (providedBalance !== null) {
+                this.playerBalance = providedBalance;
+                this.updateBalance();
+            }
+
             this.isPlaying = false;
+            this.currentBet = 0;
             this.updateStartButton();
             this.showNotification((data && data.error) || 'Erro ao fazer aposta', 'error');
         }
