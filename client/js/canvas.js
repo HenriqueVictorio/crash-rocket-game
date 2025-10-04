@@ -182,7 +182,7 @@ class RocketCurve {
         // Ajusta janela alvo do eixo X para preencher o gráfico com base no progresso
         const desiredWindow = Math.min(
             this.maxTimeWindow,
-            Math.max(this.minTimeWindow, time + 5)
+            Math.max(this.minTimeWindow, time + 1)
         );
         this.timeWindowTarget = desiredWindow;
 
