@@ -32,16 +32,16 @@ class GameEngine extends EventEmitter {
         this.config = {
             waitTime: { min: 3000, max: 7000 }, // 3-7 seconds
             countdownTime: 3000, // 3 seconds
-            updateInterval: 100, // 100ms (10 FPS) conforme especificação
-            maxGameTime: 45000, // 45 seconds max
+            updateInterval: 100, // 100ms (10 FPS)
+            maxGameTime: 90000,  // 90 seconds max para suportar curvas longas
             historySize: 20
         };
-        // Growth configuration
+        // Growth configuration (exponencial simples)
         this.growth = {
-            mode: 'exponential', // 'exponential' | 'polynomial'
-            rate: 0.55,          // per-second growth rate for exponential (e.g., ~2x em ~1.26s)
-            baseGrowth: 0.6,     // for polynomial fallback
-            acceleration: 0.01   // for polynomial fallback
+            mode: 'exponential',
+            rate: 0.065,          // Crescimento ~exp(0.065 * t)
+            minMultiplier: 1.0,
+            capMultiplier: 250    // Limite de segurança para evitar overflow
         };
         
         // Statistics
@@ -55,7 +55,7 @@ class GameEngine extends EventEmitter {
 
         // Broadcast thresholds
         this.broadcastCfg = {
-            multiplierIncrement: 0.01 // só transmite mudanças de >= 0.05x
+            multiplierIncrement: 0.005 // transmissões mais frequentes para curva suave
         };
     }
     
@@ -109,11 +109,7 @@ class GameEngine extends EventEmitter {
         this.startTime = Date.now();
     this._lastBroadcastMultiplier = this.multiplier;
         
-        this.emit('game_state_changed', {
-            state: this.state,
-            multiplier: this.multiplier,
-            time: 0
-        });
+        this.emit('game_state_changed', this.buildMultiplierPayload(0));
         
         this.startGameLoop();
     }
@@ -134,11 +130,8 @@ class GameEngine extends EventEmitter {
         if (newMultiplier - this._lastBroadcastMultiplier >= this.broadcastCfg.multiplierIncrement) {
             this.multiplier = newMultiplier;
             this._lastBroadcastMultiplier = newMultiplier;
-            this.emit('multiplier_update', {
-                state: this.state,
-                multiplier: this.multiplier,
-                time: elapsed
-            });
+            const payload = this.buildMultiplierPayload(elapsed);
+            this.emit('multiplier_update', payload);
         }
         
         // Check for crash
@@ -157,29 +150,34 @@ class GameEngine extends EventEmitter {
         this.checkAutoCashOuts();
         
         // Emit game state
-        this.emit('game_state_changed', {
-            state: this.state,
-            multiplier: this.multiplier,
-            time: elapsed
-        });
+        this.emit('game_state_changed', this.buildMultiplierPayload(elapsed));
     }
     
     calculateMultiplier(timeInSeconds) {
-        // MULTIPLICADOR CORRIGIDO — seguindo especificação do usuário (usar exatamente esta fórmula)
-        const baseSpeed = 0.1; // 10% por segundo inicialmente
-        const acceleration = 0.02; // Aceleração progressiva
-        const multiplier = 1 + (baseSpeed * timeInSeconds) + (acceleration * Math.pow(timeInSeconds, 1.3));
-        return parseFloat(multiplier.toFixed(2));
+        const { rate, minMultiplier, capMultiplier } = this.growth;
+        const multiplier = Math.exp(rate * timeInSeconds);
+        return Math.min(Math.max(multiplier, minMultiplier), capMultiplier);
     }
     
     shouldCrash(multiplier) {
-        // Probabilidade por update com faixas por multiplicador
-        let crashChance;
-        if (multiplier < 1.5) crashChance = 0.001;      // 0.1%
-        else if (multiplier < 2.0) crashChance = 0.005; // 0.5%
-        else if (multiplier < 3.0) crashChance = 0.01;  // 1%
-        else if (multiplier < 5.0) crashChance = 0.02;  // 2%
-        else crashChance = Math.min(0.1, 0.03 + (multiplier - 5) * 0.005); // cresce até 10%
+        const elapsedSeconds = this.startTime ? (Date.now() - this.startTime) / 1000 : 0;
+
+        // Probabilidade base muito baixa para permitir crescimento longo
+        let crashChance = 0.0008; // 0.08% por tick (~0.8% por segundo a 10 FPS)
+
+        // Aumenta lentamente após 30 segundos
+        if (elapsedSeconds > 30) {
+            crashChance += (elapsedSeconds - 30) * 0.0006;
+        }
+
+        // Multiplicadores muito altos elevam chance de crash progressivamente
+        if (multiplier > 5) {
+            crashChance += (multiplier - 5) * 0.0015;
+        }
+
+        // Limite superior de 8%
+        crashChance = Math.min(crashChance, 0.08);
+
         return Math.random() < crashChance;
     }
     
@@ -257,6 +255,18 @@ class GameEngine extends EventEmitter {
             const sum = this.history.reduce((a, b) => a + b, 0);
             this.stats.averageMultiplier = sum / this.history.length;
         }
+    }
+
+    buildMultiplierPayload(explicitElapsed = null) {
+        const elapsed = explicitElapsed !== null
+            ? explicitElapsed
+            : (this.startTime ? (Date.now() - this.startTime) / 1000 : 0);
+        return {
+            state: this.state,
+            multiplier: Number(this.multiplier.toFixed(4)),
+            displayMultiplier: Number(this.multiplier.toFixed(2)),
+            time: elapsed
+        };
     }
     
     // Player interaction methods

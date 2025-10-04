@@ -66,7 +66,7 @@ class CanvasManager {
         this.ctx.clearRect(0, 0, this.width, this.height);
     }
     
-    drawGrid(yMin = 1, yMax = 2) {
+    drawGrid(yMin = 1, yMax = 2, timeWindow = 30) {
         const { ctx, width, height } = this;
         
         ctx.strokeStyle = '#4a5568';
@@ -95,7 +95,8 @@ class CanvasManager {
         }
         
         // Vertical lines (time)
-        const timeIntervals = 6; // 6 intervals for 30 seconds
+        const timeIntervals = 6;
+        const secondsPerInterval = timeWindow / timeIntervals;
         for (let i = 1; i <= timeIntervals; i++) {
             const x = (i / timeIntervals) * width;
             ctx.beginPath();
@@ -106,7 +107,7 @@ class CanvasManager {
             // Time labels
             ctx.fillStyle = '#a0aec0';
             ctx.globalAlpha = 0.6;
-            ctx.fillText(`${i * 5}s`, x + 5, height - 5);
+            ctx.fillText(`${Math.round(i * secondsPerInterval)}s`, x + 5, height - 5);
             ctx.globalAlpha = 0.3;
         }
         
@@ -139,7 +140,8 @@ class RocketCurve {
         this.yMax = 2.0;         // escala atual usada para desenhar (suavizada)
         this.yMaxTarget = 2.0;   // alvo baseado no maior multiplicador recente
         this.marginFactor = 1.1; // margem de 10% acima do atual
-        this.timeWindow = 30;    // segundos visíveis no eixo X
+    this.timeWindow = 90;    // segundos visíveis no eixo X (alinha com curva longa)
+        this.interpolationStep = 0.1; // cria pontos intermediários para curva suave
     }
     
     reset() {
@@ -150,16 +152,44 @@ class RocketCurve {
     }
     
     addPoint(time, multiplier) {
+        if (typeof time !== 'number' || typeof multiplier !== 'number') {
+            return;
+        }
+
+        const safeMultiplier = Math.max(1.0, multiplier);
+
+        // Garantir ordem crescente de tempo
+        const lastPoint = this.rawPoints[this.rawPoints.length - 1];
+        if (lastPoint && time <= lastPoint.time) {
+            time = lastPoint.time + 0.0001;
+        }
+
         // Atualiza escala alvo (zoom out) quando passar de 2x
-        this.yMaxTarget = Math.max(2.0, Math.min(100, multiplier * this.marginFactor));
+    this.yMaxTarget = Math.max(2.0, Math.min(250, safeMultiplier * this.marginFactor));
+
+        // Interpolar pontos intermediários para evitar "buracos" na linha
+        if (lastPoint) {
+            const deltaTime = time - lastPoint.time;
+            if (deltaTime > this.interpolationStep) {
+                const steps = Math.min(10, Math.floor(deltaTime / this.interpolationStep));
+                for (let i = 1; i <= steps; i++) {
+                    const factor = i / (steps + 1);
+                    const interpTime = lastPoint.time + deltaTime * factor;
+                    const interpMultiplier = lastPoint.multiplier + (safeMultiplier - lastPoint.multiplier) * factor;
+                    this.rawPoints.push({ time: interpTime, multiplier: interpMultiplier });
+                }
+            }
+        }
 
         // Armazena ponto cru
-        this.rawPoints.push({ time, multiplier });
+        this.rawPoints.push({ time, multiplier: safeMultiplier });
 
         // Limita histórico recente (ex.: últimos 60s)
-        const cutoff = time - 60;
-        if (this.rawPoints.length > 2000) {
+        const cutoff = time - this.timeWindow;
+        if (cutoff > 0) {
             this.rawPoints = this.rawPoints.filter(p => p.time >= cutoff);
+        } else if (this.rawPoints.length > 2000) {
+            this.rawPoints = this.rawPoints.filter((_, idx, arr) => idx > arr.length - 2000);
         }
     }
     

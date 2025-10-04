@@ -34,10 +34,13 @@ class UIManager {
                 
                 window.socketManager.on('multiplier_update', (data) => {
                     // Atualização via servidor com menos ruído
-                    if (typeof data.multiplier === 'number') {
-                        this.multiplierCounter.target = data.multiplier;
+                    if (data && (typeof data.multiplier === 'number' || typeof data.displayMultiplier === 'number')) {
+                        const display = typeof data.displayMultiplier === 'number'
+                            ? data.displayMultiplier
+                            : Number(data.multiplier.toFixed(2));
+                        this.multiplierCounter.target = display;
                         // Atualiza exibição suavizada; o gráfico é alimentado via game.js
-                        this.updateMultiplier(data.multiplier);
+                        this.updateMultiplier(display);
                     }
                 });
                 
@@ -538,8 +541,11 @@ class UIManager {
         this.elements.countdown.classList.add('hidden');
         this.elements.crashStatus.classList.add('hidden');
         
-        if (data.multiplier) {
-            this.updateMultiplier(data.multiplier);
+        const multiplier = typeof data.multiplier === 'number'
+            ? data.multiplier
+            : (typeof data.displayMultiplier === 'number' ? data.displayMultiplier : null);
+        if (multiplier !== null) {
+            this.updateMultiplier(multiplier);
         }
     }
     

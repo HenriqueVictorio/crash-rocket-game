@@ -111,9 +111,28 @@ this.config = {
     waitTime: { min: 3000, max: 7000 },    // Tempo entre jogos
     countdownTime: 3000,                    // Countdown
     updateInterval: 100,                    // Frequência de atualização
-    maxGameTime: 30000,                     // Tempo máximo do jogo
+   maxGameTime: 90000,                     // Tempo máximo do jogo (90s)
 }
 ```
+
+### Curva Exponencial do Multiplicador
+
+O multiplicador agora segue uma curva exponencial suave configurada em `this.growth`:
+
+```javascript
+this.growth = {
+   mode: 'exponential',
+   rate: 0.065,       // taxa base usada em Math.exp(rate * t)
+   minMultiplier: 1.0,
+   capMultiplier: 250 // limite superior de segurança
+};
+```
+
+- **`rate`** controla o quão rápido a curva cresce. Valores maiores fazem o foguete acelerar mais cedo.
+- **`minMultiplier`** garante que o valor nunca caia abaixo de 1x.
+- **`capMultiplier`** serve como teto para evitar números extremos ou overflow.
+
+> Dica: altere `rate` com incrementos pequenos (±0.005) e observe a curva ao longo de uma partida completa (até 90s) para encontrar o perfil ideal.
 
 ## 🌐 Deploy
 
