@@ -10,6 +10,7 @@
     .server-selector {
         top: 10px;
         right: 10px;
+        
     }
     
     .server-dropdown {
@@ -141,7 +142,12 @@
         padding: 0.875rem;
         font-size: 1rem;
     }
-    
+    #gameCanvas,
+    .game-canvas {
+        flex: 1;
+        touch-action: pan-y;
+        pointer-events: none;
+    }
     .bet-control-btn {
         padding: 0.875rem 0.625rem;
         min-width: 45px;
