@@ -60,6 +60,26 @@ class Game {
         // Get references to managers
         this.uiManager = window.uiManager;
         this.socketManager = window.socketManager;
+
+        this.scheduleCanvasResizeFallbacks();
+    }
+
+    scheduleCanvasResizeFallbacks() {
+        const resizeCanvas = () => {
+            if (this.canvasManager) {
+                this.canvasManager.resize();
+            }
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', () => {
+                requestAnimationFrame(resizeCanvas);
+            }, { once: true });
+        } else {
+            requestAnimationFrame(resizeCanvas);
+        }
+
+        setTimeout(resizeCanvas, 400);
     }
     
     setupEventListeners() {
