@@ -27,7 +27,7 @@ class Game {
         this.waitForComponents().then(() => {
             this.setupComponents();
             this.setupEventListeners();
-            this.startRenderLoop();
+            this.waitForCanvasAndStart();
             console.log('🎮 Game initialized successfully');
         });
     }
@@ -60,26 +60,37 @@ class Game {
         // Get references to managers
         this.uiManager = window.uiManager;
         this.socketManager = window.socketManager;
-
-        this.scheduleCanvasResizeFallbacks();
     }
 
-    scheduleCanvasResizeFallbacks() {
-        const resizeCanvas = () => {
-            if (this.canvasManager) {
+    waitForCanvasAndStart() {
+        const MAX_ATTEMPTS = 10;
+        let attempts = 0;
+
+        const ensureReady = () => {
+            if (!this.canvasManager || !this.canvasManager.canvas) {
+                if (attempts++ < MAX_ATTEMPTS) {
+                    return setTimeout(ensureReady, 200);
+                }
+                return;
+            }
+
+            const rect = this.canvasManager.canvas.getBoundingClientRect();
+            const hasSize = rect.width > 0 && rect.height > 0;
+
+            if (hasSize) {
                 this.canvasManager.resize();
+                return setTimeout(() => this.startRenderLoop(), 150);
+            }
+
+            if (attempts++ < MAX_ATTEMPTS) {
+                setTimeout(ensureReady, 200);
+            } else {
+                this.canvasManager.resize();
+                setTimeout(() => this.startRenderLoop(), 150);
             }
         };
 
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', () => {
-                requestAnimationFrame(resizeCanvas);
-            }, { once: true });
-        } else {
-            requestAnimationFrame(resizeCanvas);
-        }
-
-        setTimeout(resizeCanvas, 400);
+        setTimeout(ensureReady, 200);
     }
     
     setupEventListeners() {
@@ -148,7 +159,7 @@ class Game {
             lastTouchEnd = now;
         }, false);
         
-        // Prevent scrolling on game area aparentemente fucniona
+        // Prevent scrolling on game area aparentemente fucniou
         const gameArea = document.querySelector('.game-area');
         if (gameArea) {
             let touchStartPoint = null;
