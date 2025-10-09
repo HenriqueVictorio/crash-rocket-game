@@ -401,3 +401,9 @@
         display: none;
     }
 }
+@media (max-width: 767px) {
+    #gameCanvas,
+    .game-canvas {
+        pointer-events: none; /* Desabilita interação com o canvas */
+    }
+}
