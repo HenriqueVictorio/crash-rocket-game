@@ -13,6 +13,8 @@ class Game {
         this.gameStartTime = null;
         this.animationFrameId = null;
         this.isRendering = false;
+    this.startDelayTimeout = null;
+    this.visibilityStartHandler = null;
         
         // Performance tracking
         this.lastFrameTime = 0;
@@ -27,9 +29,54 @@ class Game {
         this.waitForComponents().then(() => {
             this.setupComponents();
             this.setupEventListeners();
-            this.waitForCanvasAndStart();
-            console.log('🎮 Game initialized successfully');
+            this.scheduleInitialRender();
         });
+    }
+
+    scheduleInitialRender() {
+        if (this.startDelayTimeout) {
+            clearTimeout(this.startDelayTimeout);
+        }
+
+        if (this.visibilityStartHandler) {
+            document.removeEventListener('visibilitychange', this.visibilityStartHandler);
+            this.visibilityStartHandler = null;
+        }
+
+        console.log('⏱️ Render loop will start in 3 seconds...');
+
+        this.startDelayTimeout = setTimeout(() => {
+            this.startDelayTimeout = null;
+
+            const startWhenVisible = () => {
+                if (document.hidden) {
+                    return;
+                }
+
+                if (this.visibilityStartHandler) {
+                    document.removeEventListener('visibilitychange', this.visibilityStartHandler);
+                    this.visibilityStartHandler = null;
+                }
+
+                if (this.isRendering) {
+                    return;
+                }
+
+                this.startRenderLoop();
+                console.log('🎮 Game initialized successfully');
+            };
+
+            if (document.hidden) {
+                this.visibilityStartHandler = () => {
+                    if (!document.hidden) {
+                        startWhenVisible();
+                    }
+                };
+                document.addEventListener('visibilitychange', this.visibilityStartHandler);
+            } else {
+                startWhenVisible();
+            }
+        }, 3000);
     }
     
     async waitForComponents() {
@@ -60,37 +107,6 @@ class Game {
         // Get references to managers
         this.uiManager = window.uiManager;
         this.socketManager = window.socketManager;
-    }
-
-    waitForCanvasAndStart() {
-        const MAX_ATTEMPTS = 10;
-        let attempts = 0;
-
-        const ensureReady = () => {
-            if (!this.canvasManager || !this.canvasManager.canvas) {
-                if (attempts++ < MAX_ATTEMPTS) {
-                    return setTimeout(ensureReady, 200);
-                }
-                return;
-            }
-
-            const rect = this.canvasManager.canvas.getBoundingClientRect();
-            const hasSize = rect.width > 0 && rect.height > 0;
-
-            if (hasSize) {
-                this.canvasManager.resize();
-                return setTimeout(() => this.startRenderLoop(), 150);
-            }
-
-            if (attempts++ < MAX_ATTEMPTS) {
-                setTimeout(ensureReady, 200);
-            } else {
-                this.canvasManager.resize();
-                setTimeout(() => this.startRenderLoop(), 150);
-            }
-        };
-
-        setTimeout(ensureReady, 200);
     }
     
     setupEventListeners() {
@@ -388,6 +404,10 @@ class Game {
     }
     
     resumeRendering() {
+        if (this.startDelayTimeout) {
+            return;
+        }
+
         if (!this.isRendering) {
             this.startRenderLoop();
         }
