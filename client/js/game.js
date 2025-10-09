@@ -128,7 +128,7 @@ class Game {
             lastTouchEnd = now;
         }, false);
         
-        // Prevent scrolling on game area
+        // Prevent scrolling on game area aparentemente fucniona
         const gameArea = document.querySelector('.game-area');
         if (gameArea) {
             let touchStartPoint = null;
