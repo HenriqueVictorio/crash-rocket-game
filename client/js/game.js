@@ -131,8 +131,29 @@ class Game {
         // Prevent scrolling on game area
         const gameArea = document.querySelector('.game-area');
         if (gameArea) {
+            let touchStartPoint = null;
+
+            gameArea.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 1) {
+                    const touch = e.touches[0];
+                    touchStartPoint = { x: touch.clientX, y: touch.clientY };
+                } else {
+                    touchStartPoint = null;
+                }
+            }, { passive: true });
+
             gameArea.addEventListener('touchmove', (e) => {
-                e.preventDefault();
+                if (e.touches.length !== 1 || !touchStartPoint) {
+                    return;
+                }
+
+                const touch = e.touches[0];
+                const deltaX = Math.abs(touch.clientX - touchStartPoint.x);
+                const deltaY = Math.abs(touch.clientY - touchStartPoint.y);
+
+                if (deltaX > deltaY * 1.2) {
+                    e.preventDefault();
+                }
             }, { passive: false });
         }
         
