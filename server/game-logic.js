@@ -39,7 +39,7 @@ class GameEngine extends EventEmitter {
         // Growth configuration (exponencial simples)
         this.growth = {
             mode: 'exponential',
-            rate: 0.065,          // Crescimento ~exp(0.065 * t)
+            rate: 0.2,          // Crescimento ~exp(0.065 * t)
             minMultiplier: 1.0,
             capMultiplier: 250    // Limite de segurança para evitar overflow
         };
