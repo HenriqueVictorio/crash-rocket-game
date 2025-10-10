@@ -16,7 +16,7 @@ class Game {
     this.startDelayTimeout = null;
     this.visibilityStartHandler = null;
     this.lastRenderTimestamp = 0;
-    this.targetFrameInterval = 50;
+    this.targetFrameInterval = 100;
         
         // Performance tracking
         this.lastFrameTime = 0;
