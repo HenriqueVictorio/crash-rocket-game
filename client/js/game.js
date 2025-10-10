@@ -15,6 +15,8 @@ class Game {
         this.isRendering = false;
     this.startDelayTimeout = null;
     this.visibilityStartHandler = null;
+    this.lastRenderTimestamp = 0;
+    this.targetFrameInterval = 1000 / 30;
         
         // Performance tracking
         this.lastFrameTime = 0;
@@ -354,6 +356,15 @@ class Game {
     
     render(currentTime = 0) {
         if (!this.isRendering) return;
+
+        if (currentTime && this.lastRenderTimestamp && (currentTime - this.lastRenderTimestamp) < this.targetFrameInterval) {
+            this.animationFrameId = requestAnimationFrame((time) => this.render(time));
+            return;
+        }
+
+        if (currentTime) {
+            this.lastRenderTimestamp = currentTime;
+        }
         
         // Calculate FPS
         if (currentTime - this.lastFrameTime >= 1000) {
