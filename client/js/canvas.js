@@ -415,6 +415,8 @@ class RocketCurve {
     getRocketPosition() {
         if (this.rawPoints.length === 0) return null;
 
+        const lastRaw = this.rawPoints[this.rawPoints.length - 1];
+
         const referencePoint = (this.predictedPoint && this.rawPoints.length)
             ? this.predictedPoint
             : this.rawPoints[this.rawPoints.length - 1];
@@ -434,7 +436,7 @@ class RocketCurve {
         let angle = 0;
         if (this.rawPoints.length > 1) {
             const prevRaw = this.rawPoints[this.rawPoints.length - 2];
-            const prevTNorm = (prevRaw.time - windowStart) / this.timeWindow;
+            const prevTNorm = (prevRaw.time - windowStart) / windowSize;
             const px = Math.min(cssWidth * prevTNorm, cssWidth);
             const pm = Math.max(1.0, Math.min(prevRaw.multiplier, yMax));
             const pyNorm = (pm - 1.0) / (yMax - 1.0);
@@ -446,7 +448,7 @@ class RocketCurve {
             x,
             y,
             angle: angle,
-            multiplier: lastRaw.multiplier
+            multiplier: lastRaw ? lastRaw.multiplier : referencePoint.multiplier
         };
     }
 }
