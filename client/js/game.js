@@ -453,12 +453,15 @@ class Game {
                     this.uiManager.updateMultiplier(displayMultiplier);
                     this.lastPredictedDisplay = displayMultiplier;
                 }
-                this.rocketCurve?.setPredictedPoint(prediction.time, prediction.multiplier);
-            } else {
-                this.rocketCurve?.clearPredictedPoint();
+
+                if (this.rocketCurve) {
+                    this.rocketCurve.setPredictedPoint(prediction.time, prediction.multiplier);
+                }
+            } else if (this.rocketCurve) {
+                this.rocketCurve.clearPredictedPoint();
             }
-        } else {
-            this.rocketCurve?.clearPredictedPoint();
+        } else if (this.rocketCurve) {
+            this.rocketCurve.clearPredictedPoint();
         }
         
         // Draw grid using dynamic Y scale (start at 2x, smooth zoom-out)
@@ -574,7 +577,9 @@ class Game {
     clearPredictionSnapshot() {
         this.predictionSnapshot = null;
         this.lastPredictedDisplay = null;
-        this.rocketCurve?.clearPredictedPoint();
+        if (this.rocketCurve) {
+            this.rocketCurve.clearPredictedPoint();
+        }
     }
 
     // Debug methods
