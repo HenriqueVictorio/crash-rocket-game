@@ -1,6 +1,6 @@
 // Socket.IO client connection and event handling
 
-const DEFAULT_TUNNEL_URL = 'https://albuquerque-expired-notification-province.trycloudflare.com';
+const DEFAULT_TUNNEL_URL = 'https://consequently-empty-derived-road.trycloudflare.com';
 
 class SocketManager {
     constructor() {
