@@ -1,5 +1,8 @@
 // Main game logic and coordination
 
+const DEFAULT_GROWTH_RATE = 0.2;
+const MULTIPLIER_CAP = 250;
+
 class Game {
     constructor() {
         this.canvasManager = null;
@@ -17,6 +20,10 @@ class Game {
     this.visibilityStartHandler = null;
     this.lastRenderTimestamp = 0;
     this.targetFrameInterval = 50;
+        this.predictionSnapshot = null;
+        this.lastPredictedDisplay = null;
+        this.multiplierCap = MULTIPLIER_CAP;
+        this.defaultGrowthRate = DEFAULT_GROWTH_RATE;
         
         // Performance tracking
         this.lastFrameTime = 0;
@@ -117,22 +124,9 @@ class Game {
             this.handleGameState(data);
         });
 
-        // Alimentar linha também pelos updates de multiplicador suaves
+        // Snapshots para dead reckoning
         this.socketManager.on('multiplier_update', (data) => {
-            if (this.gameState === 'flying' && typeof data === 'object') {
-                const rawMultiplier = typeof data.multiplier === 'number' ? data.multiplier : null;
-                const displayMultiplier = typeof data.displayMultiplier === 'number'
-                    ? data.displayMultiplier
-                    : (rawMultiplier !== null ? Number(rawMultiplier.toFixed(2)) : null);
-
-                if (rawMultiplier !== null) {
-                    this.currentMultiplier = rawMultiplier;
-                }
-
-                if (displayMultiplier !== null) {
-                    this.uiManager.updateMultiplier(displayMultiplier);
-                }
-            }
+            this.handlePredictionSnapshot(data);
         });
         
         this.socketManager.on('player_cashed_out', (data) => {
@@ -242,6 +236,7 @@ class Game {
         this.gameStartTime = null;
         this.rocketCurve.reset();
         this.explosionParticles = null;
+        this.clearPredictionSnapshot();
         
         // Update UI
         this.uiManager.setGameState('waiting', data);
@@ -254,6 +249,7 @@ class Game {
         this.rocketCurve.reset();
         this.explosionParticles = null;
         this.currentMultiplier = 1.00;
+        this.clearPredictionSnapshot();
         
         // Update UI
         this.uiManager.setGameState('starting', data);
@@ -269,6 +265,10 @@ class Game {
             ? data.displayMultiplier
             : Number(rawMultiplier.toFixed(2));
         const timeValue = typeof data.time === 'number' ? data.time : 0;
+        const growthRate = typeof data.growthRate === 'number' && data.growthRate > 0
+            ? data.growthRate
+            : this.defaultGrowthRate;
+        const dataTimestamp = typeof data.timestamp === 'number' ? data.timestamp : Date.now();
         
         // Update game state
         this.currentMultiplier = rawMultiplier;
@@ -282,6 +282,16 @@ class Game {
         
         // Update UI
         this.uiManager.setGameState('flying', { multiplier: displayMultiplier });
+
+        if (!this.predictionSnapshot) {
+            this.handlePredictionSnapshot({
+                multiplier: rawMultiplier,
+                displayMultiplier,
+                time: timeValue,
+                timestamp: dataTimestamp,
+                growthRate
+            });
+        }
         
         // Check auto cash out
         this.checkAutoCashOut(rawMultiplier);
@@ -307,6 +317,8 @@ class Game {
         
         // Add to history
         this.uiManager.addToHistory(finalMultiplier);
+
+        this.clearPredictionSnapshot();
         
         console.log(`💥 Game crashed at ${finalMultiplier.toFixed(2)}x`);
     }
@@ -332,6 +344,59 @@ class Game {
         }
     }
     
+    handlePredictionSnapshot(data) {
+        if (!data || typeof data !== 'object') {
+            return;
+        }
+
+        if (this.gameState !== 'flying') {
+            return;
+        }
+
+        const rawMultiplier = typeof data.multiplier === 'number' ? data.multiplier : null;
+        if (rawMultiplier === null || !Number.isFinite(rawMultiplier)) {
+            return;
+        }
+
+        const growthRate = typeof data.growthRate === 'number' && data.growthRate > 0
+            ? data.growthRate
+            : (this.predictionSnapshot?.growthRate || this.defaultGrowthRate);
+
+        if (!growthRate || !Number.isFinite(growthRate) || growthRate <= 0) {
+            return;
+        }
+
+        let timeValue = typeof data.time === 'number' && Number.isFinite(data.time)
+            ? data.time
+            : null;
+
+        const safeMultiplier = Math.max(1.0, rawMultiplier);
+        if (timeValue === null) {
+            timeValue = Math.log(safeMultiplier) / growthRate;
+        }
+
+        const timestamp = typeof data.timestamp === 'number' && Number.isFinite(data.timestamp)
+            ? data.timestamp
+            : Date.now();
+
+        const displayMultiplier = typeof data.displayMultiplier === 'number' && Number.isFinite(data.displayMultiplier)
+            ? data.displayMultiplier
+            : Number(safeMultiplier.toFixed(2));
+
+        this.predictionSnapshot = {
+            multiplier: safeMultiplier,
+            time: Math.max(0, timeValue),
+            timestamp,
+            growthRate,
+            displayMultiplier
+        };
+
+        this.lastPredictedDisplay = displayMultiplier;
+        if (this.uiManager?.updateMultiplier) {
+            this.uiManager.updateMultiplier(displayMultiplier);
+        }
+    }
+
     checkAutoCashOut(currentMultiplier) {
         if (!this.uiManager.isAutoCashOut || !this.uiManager.isPlaying) {
             return;
@@ -379,6 +444,17 @@ class Game {
         
         // Draw background
         this.canvasManager.drawBackground();
+
+        if (this.gameState === 'flying') {
+            const prediction = this.getPredictedMultiplier();
+            if (prediction) {
+                const displayMultiplier = Number(prediction.multiplier.toFixed(2));
+                if (this.lastPredictedDisplay === null || Math.abs(displayMultiplier - this.lastPredictedDisplay) >= 0.01) {
+                    this.uiManager.updateMultiplier(displayMultiplier);
+                    this.lastPredictedDisplay = displayMultiplier;
+                }
+            }
+        }
         
         // Draw grid using dynamic Y scale (start at 2x, smooth zoom-out)
         let yMaxForGrid = 2;
@@ -462,6 +538,39 @@ class Game {
         };
     }
     
+    getPredictedMultiplier() {
+        if (this.gameState !== 'flying' || !this.predictionSnapshot) {
+            return null;
+        }
+
+        const { multiplier, time, timestamp, growthRate } = this.predictionSnapshot;
+
+        if (!Number.isFinite(multiplier) || !Number.isFinite(growthRate) || growthRate <= 0) {
+            return null;
+        }
+
+        const baseTime = Number.isFinite(time) ? time : Math.log(Math.max(1.0, multiplier)) / growthRate;
+        const elapsedSinceSnapshot = Math.max(0, (Date.now() - timestamp) / 1000);
+        const predictedTime = baseTime + elapsedSinceSnapshot;
+
+        let predictedMultiplier = Math.exp(growthRate * predictedTime);
+        if (!Number.isFinite(predictedMultiplier)) {
+            predictedMultiplier = this.multiplierCap;
+        }
+
+        predictedMultiplier = Math.min(this.multiplierCap, Math.max(1.0, predictedMultiplier));
+
+        return {
+            multiplier: predictedMultiplier,
+            time: predictedTime
+        };
+    }
+
+    clearPredictionSnapshot() {
+        this.predictionSnapshot = null;
+        this.lastPredictedDisplay = null;
+    }
+
     // Debug methods
     enableDebugMode() {
         // Add FPS counter
